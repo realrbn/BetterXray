@@ -17,6 +17,8 @@ public final class RendererCompatibility {
     private static Object iris;
     private static Method shaderPackInUse;
     private static int ticks;
+    /** Fabric renderer implementation found at startup (debug HUD). */
+    private static String rendererName = "vanilla";
 
     public static void initialize() {
         //? if !fabric {
@@ -29,6 +31,7 @@ public final class RendererCompatibility {
         /*var active = RendererAccess.INSTANCE.getRenderer();
         String renderer = active == null ? "none" : active.getClass().getName();
         *///?}
+        rendererName = renderer.substring(renderer.lastIndexOf('.') + 1);
         rendererSupported = renderer.equals("net.fabricmc.fabric.impl.client.indigo.renderer.IndigoRenderer")
             || renderer.equals("net.caffeinemc.mods.sodium.client.render.frapi.SodiumRenderer");
         //? if <1.21 {
@@ -50,6 +53,23 @@ public final class RendererCompatibility {
         EntityCullingCompat.initialize();
         refresh();
     }
+    /** Terrain meshing path for the debug HUD, e.g. "Sodium 0.9.2" or "IndigoRenderer". */
+    public static String debugPath() {
+        //? if forge {
+        /*if (Platform.sodiumLoaded()) return "Embeddium " + Platform.modVersion("embeddium");
+        *///?} else {
+        if (Platform.sodiumLoaded()) return "Sodium " + Platform.modVersion("sodium");
+        //?}
+        return rendererName;
+    }
+
+    /** Whether Iris draws with a shader pack; null without Iris. */
+    public static Boolean shaderPackActive() {
+        if (iris == null) return null;
+        try { return (Boolean)shaderPackInUse.invoke(iris); }
+        catch (ReflectiveOperationException e) { return null; }
+    }
+
     public static void tick() { if (++ticks >= 20) { ticks = 0; refresh(); } }
     public static void refresh() {
         boolean supported = rendererSupported && !irisUnavailable;

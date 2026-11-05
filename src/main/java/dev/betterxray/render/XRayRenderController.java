@@ -7,7 +7,12 @@ import net.minecraft.client.Minecraft;
 public final class XRayRenderController {
     private static boolean rebuildPending;
     private static int tagCheckTicks;
+    private static int rebuilds;
+    private static long lastRebuildMillis;
     public static void requestRebuild() { rebuildPending = true; }
+    /** Complete terrain rebuilds this session and when the last one started (debug HUD). */
+    public static int rebuilds() { return rebuilds; }
+    public static long lastRebuildMillis() { return lastRebuildMillis; }
     public static void apply() {
         XRayState.Snapshot before = XRayState.get();
         XRayState.publish(XRayConfigManager.get());
@@ -28,6 +33,10 @@ public final class XRayRenderController {
         }
         if (rebuildPending) {
             rebuildPending = false;
+            if (client.level != null) {
+                rebuilds++;
+                lastRebuildMillis = System.currentTimeMillis();
+            }
             // LevelExtractor requests invalidation on the rendering side. The vanilla
             // and Sodium backends then replace their asynchronous section builders.
             //? if >=26.1 {

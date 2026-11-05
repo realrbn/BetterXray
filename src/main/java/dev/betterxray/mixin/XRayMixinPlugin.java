@@ -62,6 +62,9 @@ public final class XRayMixinPlugin implements IMixinConfigPlugin {
         }
         var mixins = new ArrayList<>(renderMixins());
         mixins.addAll(GLASS_MIXINS);
+        // Debug HUD where the loader has no HUD render event.
+        //? if forge && >=1.21
+        /*mixins.add("DebugHudMixin");*/
         return mixins;
     }
 

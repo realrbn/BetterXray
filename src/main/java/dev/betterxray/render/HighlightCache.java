@@ -3,6 +3,7 @@ package dev.betterxray.render;
 import dev.betterxray.compat.Mc;
 import dev.betterxray.config.BlockSelection;
 import dev.betterxray.config.XRayConfigManager;
+import dev.betterxray.debug.DebugMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -96,6 +97,12 @@ public final class HighlightCache {
     private static boolean active;
     private static int lastDrawnBoxes;
     private static int lastDrawnTracers;
+    /** Sections scanned and time spent scanning in the last tick; longest scan tick in this world. */
+    private static int lastTickSections;
+    private static long lastTickNanos;
+    private static long maxTickNanos;
+    private static int veinRebuilds;
+    private static long lastVeinNanos;
 
     /**
      * Adjacent highlighted blocks of the same kind (sharing a face, edge or corner), drawn as one
@@ -184,6 +191,10 @@ public final class HighlightCache {
         active = false;
         veins = List.of();
         veinsDirty = true;
+        maxTickNanos = 0;
+        veinRebuilds = 0;
+        lastVeinNanos = 0;
+        debugBoxes = List.of();
     }
 
     /** Forgets every scanned section; the indexed area is computed again on the next tick. */
@@ -287,6 +298,18 @@ public final class HighlightCache {
     }
 
     public static void tick(Minecraft client) {
+        update(client);
+        if (!DebugMode.enabled() || client.level == null) {
+            debugBoxes = List.of();
+            return;
+        }
+        if (++debugTicks < DEBUG_TICKS) return;
+        debugTicks = 0;
+        checkInvariants(client);
+        debugBoxes = DebugMode.bounds() ? buildDebugBoxes(client) : List.of();
+    }
+
+    private static void update(Minecraft client) {
         if (client.level == null) {
             ensureWorld(null);
             return;
@@ -334,13 +357,20 @@ public final class HighlightCache {
         active = true;
         // Nearest sections first. The time cap protects FPS when a selected block is very common.
         long start = System.nanoTime();
+        int scannedNow = 0;
         while (!pending.isEmpty()) {
             long section = pending.dequeueLong();
             if (!queued.remove(section)) continue; // Dropped after it was queued.
             LevelChunk chunk = loaded.get(chunkKey(SectionPos.x(section), SectionPos.z(section)));
-            if (chunk != null) scan(section, chunk);
+            if (chunk != null) {
+                scan(section, chunk);
+                scannedNow++;
+            }
             if (System.nanoTime() - start >= SCAN_NANOS) break;
         }
+        lastTickSections = scannedNow;
+        lastTickNanos = System.nanoTime() - start;
+        maxTickNanos = Math.max(maxTickNanos, lastTickNanos);
         if (!groupVeins()) {
             veins = List.of();
             veinsDirty = true;
@@ -350,7 +380,10 @@ public final class HighlightCache {
         if (ticksSinceVeins < VEIN_REBUILD_TICKS) ticksSinceVeins++;
         int interval = pending.isEmpty() ? VEIN_MIN_REBUILD_TICKS : VEIN_REBUILD_TICKS;
         if (veinsDirty && (veinsForced || ticksSinceVeins >= interval)) {
+            long veinStart = System.nanoTime();
             veins = buildVeins();
+            lastVeinNanos = System.nanoTime() - veinStart;
+            veinRebuilds++;
             veinsDirty = false;
             veinsForced = false;
             ticksSinceVeins = 0;
@@ -533,9 +566,13 @@ public final class HighlightCache {
 
     /** Squared distance from the camera the indexed area was computed for to the closest point of a section. */
     private static double sectionDistanceSquared(long section) {
-        double dx = axisDistance(regionEye.x, SectionPos.x(section));
-        double dy = axisDistance(regionEye.y, SectionPos.y(section));
-        double dz = axisDistance(regionEye.z, SectionPos.z(section));
+        return sectionDistanceSquared(regionEye, section);
+    }
+
+    private static double sectionDistanceSquared(Vec3 eye, long section) {
+        double dx = axisDistance(eye.x, SectionPos.x(section));
+        double dy = axisDistance(eye.y, SectionPos.y(section));
+        double dz = axisDistance(eye.z, SectionPos.z(section));
         return dx * dx + dy * dy + dz * dz;
     }
 
@@ -575,6 +612,284 @@ public final class HighlightCache {
     interface Sink {
         void box(AABB box, int color);
         void tracer(Vec3 target, int color);
+        /** A line between two world points (debug drawing). */
+        void line(Vec3 from, Vec3 to, int color);
+    }
+
+    // ---- debug mode ----
+
+    /** Ticks between invariant checks and rebuilds of the drawn scan area. */
+    private static final int DEBUG_TICKS = 10;
+    /**
+     * How far the camera may be from the eye the indexed area was computed for without the area
+     * being recomputed: anywhere within the same section, so up to its diagonal.
+     */
+    private static final double ANCHOR_SLACK = 16.0 * Math.sqrt(3.0);
+    private static final int ZONE_RANGE = 0, ZONE_MARGIN = 1, ZONE_OUTSIDE = 2;
+    private static final int[] ZONE_COLORS = {0xff40ff40, 0xffffd040, 0xffff3030};
+    private static final int RANGE_COLOR = 0xff40e0ff, REACH_COLOR = 0xff4060ff;
+    /** Sections waiting for their scan, and the ESP range. */
+    private static final int QUEUED_COLOR = 0xffffffff, ESP_RANGE_COLOR = 0xffff8020;
+    /** Most section boxes drawn in {@link DebugMode#sections()} mode (nearest first) and of queued ones. */
+    private static final int MAX_DEBUG_SECTIONS = 4096, MAX_DEBUG_QUEUED = 1024;
+    private static int debugTicks;
+
+    /** A drawn piece of the index: a chunk column, a single section or a queued section. */
+    private record DebugBox(AABB box, int color) {}
+
+    private static volatile List<DebugBox> debugBoxes = List.of();
+
+    /**
+     * Index state for {@code /betterxray debug stats} and tests.
+     *
+     * @param farthestScanned distance from the camera to the closest point of the farthest scanned section
+     * @param farthestAllowed farthest distance a scanned section may have with a range limit
+     *                        (range, scan margin and keep zone), or -1 when the render distance limits
+     * @param outsideSections scanned sections outside every area the index may cover (always 0 unless broken)
+     * @param veinRebuilds    veins built since the world was joined
+     */
+    public record Stats(boolean active, boolean limited, double range, int viewChunks, int scannedSections,
+                        int queuedSections, int sectionsWithHits, int indexedPositions, int veins,
+                        double farthestScanned, double farthestAllowed, int outsideSections, int lastTickSections,
+                        long lastTickNanos, long maxTickNanos, int veinRebuilds, long lastVeinNanos,
+                        int drawnBoxes, int drawnTracers) {}
+
+    public static Stats stats(Minecraft client) {
+        var config = XRayConfigManager.get();
+        int renderDistance = client.options.renderDistance().get();
+        int view = Math.max(1, renderDistance);
+        boolean limited = config.highlightRangeLimited(renderDistance);
+        double range = config.getHighlightRangeBlocks(renderDistance);
+        Vec3 eye = cameraEye(client);
+        double farthest = 0;
+        int outside = 0;
+        for (LongIterator it = scanned.iterator(); it.hasNext(); ) {
+            long section = it.nextLong();
+            farthest = Math.max(farthest, sectionDistanceSquared(eye, section));
+            if (zone(section, eye, view, limited, range) == ZONE_OUTSIDE) outside++;
+        }
+        return new Stats(active, limited, range, view, scanned.size(), queued.size(), positions.size(), indexedCount(),
+            veins.size(), Math.sqrt(farthest), limited ? range + 2 * SCAN_MARGIN + ANCHOR_SLACK : -1, outside,
+            lastTickSections, lastTickNanos, maxTickNanos, veinRebuilds, lastVeinNanos, lastDrawnBoxes, lastDrawnTracers);
+    }
+
+    /**
+     * Where a section lies for a camera at {@code eye}, measured independently of the cached
+     * indexed area: within the highlight range, within the scan margin or the zone where indexed
+     * sections are kept, or outside every area the index may cover.
+     */
+    private static int zone(long section, Vec3 eye, int view, boolean limited, double range) {
+        int cx = Mth.floor(eye.x) >> 4, cz = Mth.floor(eye.z) >> 4;
+        int chunks = Math.max(Math.abs(SectionPos.x(section) - cx), Math.abs(SectionPos.z(section) - cz));
+        // Kept sections may be one chunk beyond the render distance (see updateRegion).
+        if (chunks > view + 1) return ZONE_OUTSIDE;
+        if (!limited) return chunks > view ? ZONE_MARGIN : ZONE_RANGE;
+        double distance = Math.sqrt(sectionDistanceSquared(eye, section));
+        if (distance <= range) return chunks > view ? ZONE_MARGIN : ZONE_RANGE;
+        return distance <= range + 2 * SCAN_MARGIN + ANCHOR_SLACK ? ZONE_MARGIN : ZONE_OUTSIDE;
+    }
+
+    private static String describe(long section, Vec3 eye) {
+        return "section " + SectionPos.x(section) + "," + SectionPos.y(section) + "," + SectionPos.z(section)
+            + " at " + Math.round(Math.sqrt(sectionDistanceSquared(eye, section))) + " blocks";
+    }
+
+    /**
+     * Checks the index against the current camera and settings. Every check recomputes what it
+     * expects from the configuration instead of trusting the cached region, so a stale or wrong
+     * region shows up as a violation.
+     */
+    private static void checkInvariants(Minecraft client) {
+        var config = XRayConfigManager.get();
+        int renderDistance = client.options.renderDistance().get();
+        int view = Math.max(1, renderDistance);
+        boolean limited = config.highlightRangeLimited(renderDistance);
+        double range = config.getHighlightRangeBlocks(renderDistance);
+        Vec3 eye = cameraEye(client);
+        String setting = " (range " + (limited ? Math.round(range) + " blocks" : "render distance") + ", view " + view + " chunks)";
+        if (!active) {
+            if (!scanned.isEmpty() || !positions.isEmpty() || !queued.isEmpty())
+                DebugMode.violation("highlight.index_while_off", scanned.size() + " scanned, " + queued.size()
+                    + " queued sections while highlighting is off");
+            return;
+        }
+        for (LongIterator it = scanned.iterator(); it.hasNext(); ) {
+            long section = it.nextLong();
+            if (zone(section, eye, view, limited, range) != ZONE_OUTSIDE) continue;
+            DebugMode.violation("highlight.scan_outside_range", "scanned " + describe(section, eye) + setting);
+            break;
+        }
+        for (LongIterator it = queued.iterator(); it.hasNext(); ) {
+            long section = it.nextLong();
+            if (zone(section, eye, view, limited, range) != ZONE_OUTSIDE) continue;
+            DebugMode.violation("highlight.queue_outside_range", "queued " + describe(section, eye) + setting);
+            break;
+        }
+        for (var entry : Long2ObjectMaps.fastIterable(positions)) {
+            long section = entry.getLongKey();
+            if (!scanned.contains(section)) {
+                DebugMode.violation("highlight.positions_not_scanned", "positions kept for unscanned " + describe(section, eye));
+                break;
+            }
+            for (var found : Long2ObjectMaps.fastIterable(entry.getValue())) {
+                BlockPos pos = BlockPos.of(found.getLongKey());
+                if (sectionKey(pos) != section)
+                    DebugMode.violation("highlight.position_wrong_section", pos.toShortString() + " filed under " + describe(section, eye));
+                else if (!blocks.contains(found.getValue()))
+                    DebugMode.violation("highlight.unselected_block", BuiltInRegistries.BLOCK.getKey(found.getValue())
+                        + " at " + pos.toShortString() + " is indexed but not selected");
+            }
+        }
+        if (!groupVeins() && !veins.isEmpty())
+            DebugMode.violation("highlight.veins_while_ungrouped", veins.size() + " veins while Group Veins is off");
+    }
+
+    /**
+     * The drawn index: per chunk column a box from its lowest to its highest scanned section,
+     * colored by the farthest {@link #zone} among them, plus every section outside all allowed
+     * areas on its own. In {@link DebugMode#sections()} mode every scanned section gets its own
+     * box instead (the nearest {@value #MAX_DEBUG_SECTIONS}). Queued sections are drawn white.
+     */
+    private static List<DebugBox> buildDebugBoxes(Minecraft client) {
+        var config = XRayConfigManager.get();
+        int renderDistance = client.options.renderDistance().get();
+        int view = Math.max(1, renderDistance);
+        boolean limited = config.highlightRangeLimited(renderDistance);
+        double range = config.getHighlightRangeBlocks(renderDistance);
+        Vec3 eye = cameraEye(client);
+        List<DebugBox> result = new ArrayList<>();
+        if (DebugMode.sections()) {
+            LongArrayList sorted = new LongArrayList(scanned);
+            sorted.sort((long a, long b) -> Double.compare(sectionDistanceSquared(eye, a), sectionDistanceSquared(eye, b)));
+            for (int i = 0; i < Math.min(sorted.size(), MAX_DEBUG_SECTIONS); i++) {
+                long section = sorted.getLong(i);
+                result.add(new DebugBox(sectionBox(section, 0.5), ZONE_COLORS[zone(section, eye, view, limited, range)]));
+            }
+        } else {
+            // Per column: lowest section, highest section, zone.
+            Long2ObjectOpenHashMap<int[]> columns = new Long2ObjectOpenHashMap<>();
+            for (LongIterator it = scanned.iterator(); it.hasNext(); ) {
+                long section = it.nextLong();
+                int y = SectionPos.y(section), zone = zone(section, eye, view, limited, range);
+                if (zone == ZONE_OUTSIDE) result.add(new DebugBox(sectionBox(section, 0.5), ZONE_COLORS[ZONE_OUTSIDE]));
+                int[] column = columns.computeIfAbsent(chunkKey(SectionPos.x(section), SectionPos.z(section)), k -> new int[] {y, y, zone});
+                column[0] = Math.min(column[0], y);
+                column[1] = Math.max(column[1], y);
+                column[2] = Math.max(column[2], zone);
+            }
+            for (var entry : Long2ObjectMaps.fastIterable(columns)) {
+                double x = ChunkPos.getX(entry.getLongKey()) * 16.0, z = ChunkPos.getZ(entry.getLongKey()) * 16.0;
+                int[] column = entry.getValue();
+                AABB box = new AABB(x, column[0] * 16.0, z, x + 16, column[1] * 16.0 + 16, z + 16).inflate(-0.25);
+                result.add(new DebugBox(box, ZONE_COLORS[column[2]]));
+            }
+        }
+        int queuedBoxes = 0;
+        for (LongIterator it = queued.iterator(); it.hasNext() && queuedBoxes < MAX_DEBUG_QUEUED; queuedBoxes++)
+            result.add(new DebugBox(sectionBox(it.nextLong(), 2.0), QUEUED_COLOR));
+        return List.copyOf(result);
+    }
+
+    /** Box of a section, shrunk by {@code inset} on every side so neighbors stay apart. */
+    private static AABB sectionBox(long section, double inset) {
+        double x = SectionPos.x(section) * 16.0, y = SectionPos.y(section) * 16.0, z = SectionPos.z(section) * 16.0;
+        return new AABB(x, y, z, x + 16, y + 16, z + 16).inflate(-inset);
+    }
+
+    /**
+     * Debug drawing: the index (see {@link #buildDebugBoxes}: green within the range, yellow in
+     * the scan margin, red outside every allowed area, white queued), the highlight range as a
+     * wireframe sphere with the scan reach as a second hull (or, without a range limit, the
+     * render distance as squares), the ESP range and the Structure Finder's scan area.
+     */
+    private static void drawDebug(Vec3 eye, Frustum frustum, Sink sink) {
+        if (!DebugMode.bounds() || Minecraft.getInstance().level == null) return;
+        for (DebugBox box : debugBoxes) if (frustum.isVisible(box.box())) sink.box(box.box(), box.color());
+        Minecraft client = Minecraft.getInstance();
+        int renderDistance = client.options.renderDistance().get();
+        var config = XRayConfigManager.get();
+        if (config.highlightEnabled) {
+            if (config.highlightRangeLimited(renderDistance)) {
+                double range = config.getHighlightRangeBlocks(renderDistance);
+                sphere(sink, eye, range, 5, RANGE_COLOR);
+                sphere(sink, eye, range + SCAN_MARGIN, 1, REACH_COLOR);
+            } else {
+                int view = Math.max(1, renderDistance);
+                chunkSquare(sink, eye, view, RANGE_COLOR);
+                chunkSquare(sink, eye, view + 1, REACH_COLOR);
+            }
+        }
+        if (config.mobEspEnabled && config.mobEspRangeBlocks > 0) {
+            Entity camera = client.getCameraEntity();
+            if (camera != null) sphere(sink, camera.getEyePosition(), config.mobEspRangeBlocks, 1, ESP_RANGE_COLOR);
+        }
+        StructureFinder.drawDebug(frustum, sink);
+    }
+
+    /**
+     * Wireframe sphere: {@code rings} circles of latitude spread evenly between the poles (an odd
+     * count includes the equator) and {@code rings + 1} great circles through the poles.
+     */
+    private static void sphere(Sink sink, Vec3 center, double radius, int rings, int color) {
+        final int segments = 72;
+        for (int ring = 0; ring < rings; ring++) {
+            double latitude = Math.PI * (ring + 1) / (rings + 1) - Math.PI / 2;
+            double y = Math.sin(latitude) * radius, r = Math.cos(latitude) * radius;
+            Vec3 previous = null;
+            for (int i = 0; i <= segments; i++) {
+                double angle = i * 2 * Math.PI / segments;
+                Vec3 point = center.add(Math.cos(angle) * r, y, Math.sin(angle) * r);
+                if (previous != null) sink.line(previous, point, color);
+                previous = point;
+            }
+        }
+        int meridians = rings + 1;
+        for (int meridian = 0; meridian < meridians; meridian++) {
+            double longitude = meridian * Math.PI / meridians, dx = Math.cos(longitude), dz = Math.sin(longitude);
+            Vec3 previous = null;
+            for (int i = 0; i <= segments; i++) {
+                double angle = i * 2 * Math.PI / segments, a = Math.cos(angle) * radius;
+                Vec3 point = center.add(dx * a, Math.sin(angle) * radius, dz * a);
+                if (previous != null) sink.line(previous, point, color);
+                previous = point;
+            }
+        }
+    }
+
+    /** Horizontal square at eye height around the chunks up to {@code chunks} away from the camera's chunk. */
+    private static void chunkSquare(Sink sink, Vec3 eye, int chunks, int color) {
+        int cx = Mth.floor(eye.x) >> 4, cz = Mth.floor(eye.z) >> 4;
+        double minX = (cx - chunks) * 16.0, maxX = (cx + chunks + 1) * 16.0;
+        double minZ = (cz - chunks) * 16.0, maxZ = (cz + chunks + 1) * 16.0, y = eye.y;
+        sink.line(new Vec3(minX, y, minZ), new Vec3(maxX, y, minZ), color);
+        sink.line(new Vec3(maxX, y, minZ), new Vec3(maxX, y, maxZ), color);
+        sink.line(new Vec3(maxX, y, maxZ), new Vec3(minX, y, maxZ), color);
+        sink.line(new Vec3(minX, y, maxZ), new Vec3(minX, y, minZ), color);
+    }
+
+    /**
+     * Wraps a sink so every drawn box is checked against the highlight range: with a range limit,
+     * its closest point must lie within the range.
+     */
+    private static Sink checkedSink(Sink sink, Vec3 eye) {
+        int renderDistance = Minecraft.getInstance().options.renderDistance().get();
+        var config = XRayConfigManager.get();
+        if (!config.highlightRangeLimited(renderDistance)) return sink;
+        double range = config.getHighlightRangeBlocks(renderDistance);
+        return new Sink() {
+            @Override public void box(AABB box, int color) {
+                double dx = Math.max(0.0, Math.max(box.minX - eye.x, eye.x - box.maxX));
+                double dy = Math.max(0.0, Math.max(box.minY - eye.y, eye.y - box.maxY));
+                double dz = Math.max(0.0, Math.max(box.minZ - eye.z, eye.z - box.maxZ));
+                double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (distance > range + 0.05)
+                    DebugMode.violation("highlight.drawn_outside_range", "box at " + BlockPos.containing(box.getCenter()).toShortString()
+                        + " drawn " + Math.round(distance) + " blocks away, range " + Math.round(range));
+                sink.box(box, color);
+            }
+            @Override public void tracer(Vec3 target, int color) { sink.tracer(target, color); }
+            @Override public void line(Vec3 from, Vec3 to, int color) { sink.line(from, to, color); }
+        };
     }
 
     /**
@@ -582,6 +897,7 @@ public final class HighlightCache {
      * camera; boxes and tracers share it.
      */
     private static void visit(Vec3 eye, Frustum frustum, boolean tracers, Sink sink) {
+        if (DebugMode.enabled()) sink = checkedSink(sink, eye);
         if (groupVeins()) {
             visitVeins(eye, frustum, tracers, sink);
             return;
@@ -701,6 +1017,7 @@ public final class HighlightCache {
                 Gizmos.cuboid(box, styles.computeIfAbsent(color, c -> GizmoStyle.stroke(c, 2.5f))).setAlwaysOnTop();
             }
             @Override public void tracer(Vec3 target, int color) { Gizmos.line(tracerStart, target, color, 1.5f).setAlwaysOnTop(); }
+            @Override public void line(Vec3 from, Vec3 to, int color) { Gizmos.line(from, to, color, 1.5f).setAlwaysOnTop(); }
         };
     }
 
@@ -712,6 +1029,7 @@ public final class HighlightCache {
 
     //? if >=26.1 {
     public static void render(CameraRenderState camera) {
+        drawDebug(camera.pos, camera.cullFrustum, gizmoSink(camera.pos));
         if (!shouldRender()) return;
         var config = XRayConfigManager.get();
         Vec3 tracerStart = config.tracersEnabled ? tracerStart(camera, Minecraft.getInstance()) : camera.pos;
@@ -760,15 +1078,16 @@ public final class HighlightCache {
     //?} else if >=1.21.11 {
     /*/// @param tracerStart world point at the screen center just in front of the camera
     public static void render(Vec3 eye, Frustum frustum, Vec3 tracerStart) {
+        drawDebug(eye, frustum, gizmoSink(tracerStart));
         if (!shouldRender()) return;
         gizmos(eye, frustum, tracerStart);
     }
     *///?} else {
     /*/// Draws with always-on-top line render types; vertices are camera-relative.
     public static void render(Vec3 eye, Frustum frustum, Vec3 tracerStart, PoseStack.Pose pose) {
-        if (!shouldRender()) return;
         var sink = new LineSink(eye, tracerStart, pose);
-        visit(eye, frustum, XRayConfigManager.get().tracersEnabled, sink);
+        drawDebug(eye, frustum, sink);
+        if (shouldRender()) visit(eye, frustum, XRayConfigManager.get().tracersEnabled, sink);
         sink.finish();
     }
 
@@ -781,8 +1100,9 @@ public final class HighlightCache {
         private final Vec3 tracerStart;
         private final PoseStack.Pose pose;
         private final MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-        private final List<Vec3> tracerTargets = new ArrayList<>();
-        private final it.unimi.dsi.fastutil.ints.IntArrayList tracerColors = new it.unimi.dsi.fastutil.ints.IntArrayList();
+        private final List<Vec3> lineStarts = new ArrayList<>();
+        private final List<Vec3> lineEnds = new ArrayList<>();
+        private final it.unimi.dsi.fastutil.ints.IntArrayList lineColors = new it.unimi.dsi.fastutil.ints.IntArrayList();
         private VertexConsumer boxes;
 
         LineSink(Vec3 eye, Vec3 tracerStart, PoseStack.Pose pose) {
@@ -796,16 +1116,22 @@ public final class HighlightCache {
             LineBuffers.box(boxes, pose, box.move(-eye.x, -eye.y, -eye.z), red(color), green(color), blue(color), 1f);
         }
 
-        @Override public void tracer(Vec3 target, int color) { tracerTargets.add(target); tracerColors.add(color); }
+        @Override public void tracer(Vec3 target, int color) { line(tracerStart, target, color); }
+
+        @Override public void line(Vec3 from, Vec3 to, int color) {
+            lineStarts.add(from);
+            lineEnds.add(to);
+            lineColors.add(color);
+        }
 
         void finish() {
             if (boxes != null) buffers.endBatch(XRayRenderTypes.HIGHLIGHT_BOXES);
-            if (tracerTargets.isEmpty()) return;
+            if (lineStarts.isEmpty()) return;
             VertexConsumer lines = buffers.getBuffer(XRayRenderTypes.TRACERS);
-            Vec3 from = tracerStart.subtract(eye);
-            for (int i = 0; i < tracerTargets.size(); i++) {
-                int color = tracerColors.getInt(i);
-                LineBuffers.line(lines, pose, from, tracerTargets.get(i).subtract(eye), red(color), green(color), blue(color), 1f);
+            for (int i = 0; i < lineStarts.size(); i++) {
+                int color = lineColors.getInt(i);
+                LineBuffers.line(lines, pose, lineStarts.get(i).subtract(eye), lineEnds.get(i).subtract(eye),
+                    red(color), green(color), blue(color), 1f);
             }
             buffers.endBatch(XRayRenderTypes.TRACERS);
         }

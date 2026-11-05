@@ -7,6 +7,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 import dev.betterxray.command.XRayCommands;
 import dev.betterxray.config.XRayConfigManager;
+import dev.betterxray.debug.DebugHud;
 import dev.betterxray.gui.XRayConfigScreen;
 import dev.betterxray.render.*;
 import dev.betterxray.compat.Platform;
@@ -17,6 +18,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+//? if >=1.21.6 {
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+//?} else {
+/*import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+*///?}
 //?} else if neoforge {
 /*import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -26,6 +32,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 *///?} else {
@@ -34,6 +41,8 @@ import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RegisterShadersEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+//? if <1.21
+/^import net.minecraftforge.client.event.RenderGuiEvent;^/
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -106,6 +115,11 @@ public final class XRayClient {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> RendererCompatibility.initialize());
         ClientTickEvents.END_CLIENT_TICK.register(XRayClient::tick);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> XRayCommands.register(dispatcher));
+        //? if >=1.21.6 {
+        HudElementRegistry.addLast(Mc.id("betterxray", "debug_hud"), (g, delta) -> DebugHud.draw(g));
+        //?} else {
+        /*HudRenderCallback.EVENT.register((g, delta) -> DebugHud.draw(g));
+        *///?}
     }
     //?} else if neoforge {
     /*public XRayClient(IEventBus modBus, ModContainer container) {
@@ -136,6 +150,7 @@ public final class XRayClient {
         modBus.addListener(FMLClientSetupEvent.class, event -> event.enqueueWork(RendererCompatibility::initialize));
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> tick(Minecraft.getInstance()));
         NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class, event -> XRayCommands.register(event.getDispatcher()));
+        NeoForge.EVENT_BUS.addListener(RenderGuiEvent.Post.class, event -> DebugHud.draw(event.getGuiGraphics()));
         container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> new XRayConfigScreen(parent));
     }
     *///?} else {
@@ -151,6 +166,9 @@ public final class XRayClient {
         MinecraftForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RegisterClientCommandsEvent.class,
             event -> XRayCommands.register(event.getDispatcher()));
         MinecraftForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderLevelStageEvent.class, XRayClient::renderStage);
+        // Forge 1.21.1 has no HUD event; DebugHudMixin draws the debug HUD there.
+        //? if <1.21
+        /^MinecraftForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiEvent.Post.class, event -> DebugHud.draw(event.getGuiGraphics()));^/
         ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
             () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) -> new XRayConfigScreen(parent)));
     }
@@ -267,6 +285,7 @@ public final class XRayClient {
         HighlightCache.tick(client);
         StructureFinder.tick(client);
         XRayRenderController.tick(client);
+        DebugHud.tick(client);
     }
 
     //? if >=1.21.9 {
