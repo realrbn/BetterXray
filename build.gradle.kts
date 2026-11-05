@@ -111,6 +111,8 @@ if (hasClientGameTests) {
     // Client gametests must not contact the real update server; UpdateCheckTest points the checker at a local file.
     loom.runs.matching { it.name == "clientGameTest" }.configureEach {
         property("betterxray.updateCheck.url", "off")
+        // Invariant checks on; the tests assert that none broke (DebugMode.assertClean).
+        property("betterxray.debug", "true")
     }
 
     // Shader baseline: copies the packs from <root>/run/shaderpacks into the freshly
@@ -166,7 +168,7 @@ if (hasClientGameTests) {
         tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("prodClientGameTest") {
             mods.from(tasks.named("remapJar"), remapGametestJar, prodMods)
             runDir = layout.buildDirectory.dir("run/prodClientGameTest")
-            jvmArgs.addAll("-Dfabric.client.gametest", "-Dbetterxray.updateCheck.url=off",
+            jvmArgs.addAll("-Dfabric.client.gametest", "-Dbetterxray.updateCheck.url=off", "-Dbetterxray.debug=true",
                 "-Dfabric.client.gametest.testModResourcesPath=" + rootProject.file("src/gametest/resources").absolutePath)
             useXVFB = false
         }
@@ -188,6 +190,7 @@ if (hasClientGameTests) {
                 source(validation)
                 runDir("run-validation")
                 property("betterxray.validation", "true")
+                property("betterxray.debug", "true")
                 // The test JVM ships a newer LWJGL than 1.20.1 pins; Sodium 0.5 would refuse to start.
                 property("sodium.checks.issue2561", "false")
                 if (project.hasProperty("persistence")) property("betterxray.persistence", project.property("persistence").toString())
@@ -216,7 +219,7 @@ if (hasClientGameTests) {
     tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("prodValidation") {
         mods.from(tasks.named("remapJar"), remapValidationJar, prodMods)
         runDir = layout.projectDirectory.dir("run-prod-validation")
-        jvmArgs.addAll("-Dbetterxray.validation=true", "-Dsodium.checks.issue2561=false")
+        jvmArgs.addAll("-Dbetterxray.validation=true", "-Dbetterxray.debug=true", "-Dsodium.checks.issue2561=false")
         useXVFB = false
     }
 }

@@ -232,5 +232,11 @@
   "command.betterxray.help.highlight": "Highlight and its block list, tracers and range",
   "command.betterxray.help.esp": "Mob/player ESP master switch, tracers and range",
   "command.betterxray.help.tags": "find block tags and their blocks",
-  "command.betterxray.help.status": "show all current settings"
+  "command.betterxray.help.status": "show all current settings",
+  "debug.betterxray.violation": "[Better X-Ray debug] Invariant broken – %s: %s",
+  "debug.betterxray.status": "Debug mode: %s · Bounds %s · Sections %s · HUD %s · %s broken invariants (%s violations)",
+  "debug.betterxray.stats.highlight": "Highlight: %s · Range %s · View %s chunks · %s sections scanned, %s queued, %s with hits · %s positions · %s veins",
+  "debug.betterxray.stats.highlight_scan": "Highlight scan: farthest section %s blocks · %s outside the allowed area · last tick %s sections in %s ms (max %s ms) · drawn %s boxes, %s tracers",
+  "debug.betterxray.stats.structures": "Structure Finder: %s found · scan around chunk %s,%s radius %s · %s chunks read in %s ms · %s boxes drawn",
+  "debug.betterxray.stats.structures_unavailable": "Structure Finder: unavailable (singleplayer only)"
 }

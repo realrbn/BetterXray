@@ -1,6 +1,7 @@
 package dev.betterxray.render;
 
 import dev.betterxray.config.XRayConfigManager;
+import dev.betterxray.debug.DebugMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.Registry;
@@ -60,10 +61,32 @@ public final class StructureFinder {
     /** A structure start near the player; {@code center} is the tracer target. */
     public record Found(Group group, AABB bounds, Vec3 center) {}
 
-    private record Scan(ResourceKey<Level> dimension, List<Found> found) {}
+    /**
+     * Result of one scan of the chunks within {@code radius} chunks of {@code centerX}/{@code centerZ}.
+     *
+     * @param chunks loaded chunks that were read
+     * @param nanos  time the scan took on the server thread
+     */
+    private record Scan(ResourceKey<Level> dimension, List<Found> found, int centerX, int centerZ, int radius,
+                        int chunks, long nanos) {
+        static final Scan EMPTY = new Scan(null, List.of(), 0, 0, 0, 0, 0);
+    }
+
+    /** State for {@code /betterxray debug stats} and tests. */
+    public record Stats(boolean available, int found, int centerX, int centerZ, int radius, int chunks, long scanNanos,
+                        int drawnBoxes, int epoch, boolean scanning) {}
+
+    /**
+     * Structures may extend beyond the chunks that reference them by this many blocks: the start's
+     * box, which places the references, is padded for terrain adaptation, the piece box is not.
+     */
+    private static final int REFERENCE_SLACK = 16;
 
     private static final int SCAN_TICKS = 20;
-    private static volatile Scan last = new Scan(null, List.of());
+    private static volatile Scan last = Scan.EMPTY;
+    /** Last scan the debug checks ran on, and whether the finder was already off on the previous tick. */
+    private static Scan checked = Scan.EMPTY;
+    private static boolean wasOff = true;
     private static final AtomicBoolean scanning = new AtomicBoolean();
     /** Bumped whenever results are cleared; a scan still running for an older epoch is dropped. */
     private static final AtomicInteger epoch = new AtomicInteger();
@@ -167,8 +190,14 @@ public final class StructureFinder {
 
     private static void clear() {
         epoch.incrementAndGet();
-        last = new Scan(null, List.of());
+        last = Scan.EMPTY;
         ticks = SCAN_TICKS;
+    }
+
+    public static Stats stats() {
+        Scan scan = last;
+        return new Stats(available(), scan.found().size(), scan.centerX(), scan.centerZ(), scan.radius(), scan.chunks(),
+            scan.nanos(), lastDrawnBoxes, epoch.get(), scanning.get());
     }
 
     public static void tick(Minecraft client) {
@@ -176,8 +205,17 @@ public final class StructureFinder {
         MinecraftServer server = client.getSingleplayerServer();
         if (!config.structureFinderEnabled || config.structures.isEmpty() || server == null
             || client.level == null || client.player == null) {
+            // Results were cleared on an earlier tick; a scan published since then belongs to an older epoch.
+            if (DebugMode.enabled() && wasOff && !last.found().isEmpty())
+                DebugMode.violation("structure.found_while_off", last.found().size() + " structures published after the finder was switched off");
+            wasOff = true;
             if (!last.found().isEmpty() || last.dimension() != null) clear();
             return;
+        }
+        wasOff = false;
+        if (DebugMode.enabled() && last != checked) {
+            checked = last;
+            checkInvariants(checked);
         }
         if (++ticks < SCAN_TICKS || !scanning.compareAndSet(false, true)) return;
         ticks = 0;
@@ -193,16 +231,61 @@ public final class StructureFinder {
         int scanEpoch = epoch.get();
         server.execute(() -> {
             try {
-                List<Found> found = scan(server.getLevel(dimension), center, radius, wanted);
-                if (epoch.get() == scanEpoch) last = new Scan(dimension, found);
+                long start = System.nanoTime();
+                int[] chunks = new int[1];
+                List<Found> found = scan(server.getLevel(dimension), center, radius, wanted, chunks);
+                //? if >=26.1 {
+                int centerX = center.x(), centerZ = center.z();
+                //?} else {
+                /*int centerX = center.x, centerZ = center.z;
+                *///?}
+                if (epoch.get() == scanEpoch)
+                    last = new Scan(dimension, found, centerX, centerZ, radius, chunks[0], System.nanoTime() - start);
             } finally {
                 scanning.set(false);
             }
         });
     }
 
-    /** Runs on the server thread. */
-    private static List<Found> scan(ServerLevel level, ChunkPos center, int radius, Map<String, Group> wanted) {
+    /**
+     * Checks a published scan: every structure must touch the chunks the scan read (plus
+     * {@link #REFERENCE_SLACK}), and no structure start may be listed twice.
+     */
+    private static void checkInvariants(Scan scan) {
+        double minX = (scan.centerX() - scan.radius()) * 16.0 - REFERENCE_SLACK;
+        double minZ = (scan.centerZ() - scan.radius()) * 16.0 - REFERENCE_SLACK;
+        double maxX = (scan.centerX() + scan.radius() + 1) * 16.0 + REFERENCE_SLACK;
+        double maxZ = (scan.centerZ() + scan.radius() + 1) * 16.0 + REFERENCE_SLACK;
+        Set<AABB> seen = new HashSet<>();
+        for (Found found : scan.found()) {
+            AABB box = found.bounds();
+            if (box.maxX < minX || box.minX > maxX || box.maxZ < minZ || box.minZ > maxZ) {
+                DebugMode.violation("structure.found_outside_scan", found.group().key() + " at "
+                    + BlockPos.containing(found.center()).toShortString() + " lies outside the scanned chunks around chunk "
+                    + scan.centerX() + "," + scan.centerZ() + " (radius " + scan.radius() + ")");
+            }
+            if (!seen.add(box)) DebugMode.violation("structure.duplicate", found.group().key() + " at "
+                + BlockPos.containing(found.center()).toShortString() + " listed twice");
+        }
+    }
+
+    /** Debug drawing: the chunk square of the last scan, over the full world height. */
+    static void drawDebug(Frustum frustum, HighlightCache.Sink sink) {
+        Scan scan = last;
+        Minecraft client = Minecraft.getInstance();
+        if (scan.dimension() == null || client.level == null || !client.level.dimension().equals(scan.dimension())) return;
+        //? if >=1.21.2 {
+        int bottom = client.level.getMinY(), top = client.level.getMaxY() + 1;
+        //?} else {
+        /*int bottom = client.level.getMinBuildHeight(), top = client.level.getMaxBuildHeight();
+        *///?}
+        AABB area = new AABB((scan.centerX() - scan.radius()) * 16.0, bottom, (scan.centerZ() - scan.radius()) * 16.0,
+            (scan.centerX() + scan.radius() + 1) * 16.0, top, (scan.centerZ() + scan.radius() + 1) * 16.0);
+        if (frustum.isVisible(area)) sink.box(area, 0xffff40ff);
+    }
+
+    /** Runs on the server thread; {@code chunks[0]} receives the number of loaded chunks read. */
+    private static List<Found> scan(ServerLevel level, ChunkPos center, int radius, Map<String, Group> wanted, int[] chunksRead) {
         if (level == null || wanted.isEmpty()) return List.of();
         Registry<Structure> registry = registry(level.registryAccess(), Registries.STRUCTURE);
         Map<Structure, Group> selected = new HashMap<>();
@@ -221,6 +304,7 @@ public final class StructureFinder {
         for (int x = centerX - radius; x <= centerX + radius; x++) for (int z = centerZ - radius; z <= centerZ + radius; z++) {
             LevelChunk chunk = chunks.getChunkNow(x, z);
             if (chunk == null) continue;
+            chunksRead[0]++;
             // Every chunk a structure overlaps references its start chunk, also across chunk borders.
             for (var references : chunk.getAllReferences().entrySet()) {
                 Group group = selected.get(references.getKey());

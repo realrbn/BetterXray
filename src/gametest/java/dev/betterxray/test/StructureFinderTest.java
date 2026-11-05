@@ -3,6 +3,8 @@ package dev.betterxray.test;
 import dev.betterxray.compat.Mc;
 import dev.betterxray.config.XRayConfigManager;
 import dev.betterxray.gui.StructureScreen;
+import dev.betterxray.debug.DebugHud;
+import dev.betterxray.debug.DebugMode;
 import dev.betterxray.render.StructureFinder;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -80,6 +82,10 @@ public final class StructureFinderTest implements FabricClientGameTest {
             TestCompat.screenshot(context, "structure-01-igloo");
             context.runOnClient(client -> {
                 if (StructureFinder.lastDrawnBoxes() < 1) throw new AssertionError("Igloo box not drawn: " + StructureFinder.lastDrawnBoxes());
+                var stats = StructureFinder.stats();
+                if (stats.found() != 2 || stats.chunks() < 1 || stats.radius() < 1)
+                    throw new AssertionError("Structure Finder debug stats: " + stats);
+                DebugMode.assertClean("structure finder");
             });
 
             // Regression: always-on-top lines took the terrain fog, so boxes far into the fog turned sky
@@ -95,6 +101,24 @@ public final class StructureFinderTest implements FabricClientGameTest {
             System.out.println("[BetterXray Structures] far box pixels in structure color at render distance 2: " + far);
             if (far < 300) throw new AssertionError("Far igloo box lost its color in the fog: " + far + " pixels near "
                 + Integer.toHexString(color));
+
+            // Debug mode: the scan area of the last scan is drawn (after the fog check, whose timing
+            // depends on the 20-tick scan cycle).
+            context.runOnClient(client -> {
+                DebugMode.setBounds(true);
+                DebugMode.setHud(true);
+            });
+            context.waitTicks(11);
+            context.runOnClient(client -> {
+                var lines = DebugHud.lines();
+                if (lines.stream().noneMatch(line -> line.startsWith("Structures: ") && line.contains(" found, ") && line.contains(" | epoch ")))
+                    throw new AssertionError("Debug HUD shows no Structure Finder scan: " + lines);
+            });
+            TestCompat.screenshot(context, "structure-04-debug-bounds");
+            context.runOnClient(client -> {
+                DebugMode.setBounds(false);
+                DebugMode.setHud(false);
+            });
 
             // The picker lists the igloo row as selected; toggling it deselects every igloo variant.
             context.setScreen(() -> new StructureScreen(null));
@@ -122,6 +146,7 @@ public final class StructureFinderTest implements FabricClientGameTest {
             context.waitTicks(45);
             context.runOnClient(client -> {
                 if (!StructureFinder.found().isEmpty()) throw new AssertionError("Deselected igloo still found");
+                DebugMode.assertClean("end of the structure finder test");
                 XRayConfigManager.reset();
             });
         }

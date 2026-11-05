@@ -14,7 +14,10 @@ import dev.betterxray.compat.RendererCompatibility;
 import dev.betterxray.config.BlockSelection;
 import dev.betterxray.config.XRayConfig;
 import dev.betterxray.config.XRayConfigManager;
+import dev.betterxray.debug.DebugMode;
+import dev.betterxray.render.HighlightCache;
 import dev.betterxray.render.MobEspRenderer;
+import dev.betterxray.render.StructureFinder;
 import dev.betterxray.render.XRayRenderController;
 import dev.betterxray.render.XRayState;
 import net.minecraft.ChatFormatting;
@@ -130,6 +133,22 @@ public final class XRayCommands {
             root.then(literal("tag").then(argument("tag", StringArgumentType.greedyString())
                 .suggests((c, builder) -> suggestTags(builder))
                 .executes(c -> showTag(StringArgumentType.getString(c, "tag")))));
+
+            // Developer debug mode; not listed in the help.
+            root.then(literal("debug").executes(c -> debugStatus())
+                .then(literal("on").executes(c -> setDebug(true)))
+                .then(literal("off").executes(c -> setDebug(false)))
+                .then(literal("bounds").executes(c -> setDebugBounds(!DebugMode.bounds()))
+                    .then(literal("on").executes(c -> setDebugBounds(true)))
+                    .then(literal("off").executes(c -> setDebugBounds(false))))
+                .then(literal("sections").executes(c -> setDebugSections(!DebugMode.sections()))
+                    .then(literal("on").executes(c -> setDebugSections(true)))
+                    .then(literal("off").executes(c -> setDebugSections(false))))
+                .then(literal("hud").executes(c -> setDebugHud(!DebugMode.hud()))
+                    .then(literal("on").executes(c -> setDebugHud(true)))
+                    .then(literal("off").executes(c -> setDebugHud(false))))
+                .then(literal("stats").executes(c -> debugStats()))
+                .then(literal("clear").executes(c -> clearDebug())));
             return root;
         }
 
@@ -429,6 +448,58 @@ public final class XRayCommands {
         XRayConfigManager.save();
         return showEspRange();
     }
+
+    // ---- debug mode ----
+
+    private static int debugStatus() {
+        send(Component.translatable("debug.betterxray.status", onOff(DebugMode.enabled()), onOff(DebugMode.bounds()),
+            onOff(DebugMode.sections()), onOff(DebugMode.hud()), DebugMode.violations().size(), DebugMode.total()));
+        for (String violation : DebugMode.violations()) send(Component.literal("• " + violation).withStyle(ChatFormatting.RED));
+        return 1;
+    }
+
+    private static int setDebug(boolean value) {
+        DebugMode.setEnabled(value);
+        return debugStatus();
+    }
+
+    private static int setDebugBounds(boolean value) {
+        DebugMode.setBounds(value);
+        return debugStatus();
+    }
+
+    private static int setDebugSections(boolean value) {
+        DebugMode.setSections(value);
+        return debugStatus();
+    }
+
+    private static int setDebugHud(boolean value) {
+        DebugMode.setHud(value);
+        return debugStatus();
+    }
+
+    private static int clearDebug() {
+        DebugMode.clear();
+        return debugStatus();
+    }
+
+    private static int debugStats() {
+        if (!inWorld()) return fail(Component.translatable("command.betterxray.tags_no_world"));
+        var h = HighlightCache.stats(Minecraft.getInstance());
+        send(Component.translatable("debug.betterxray.stats.highlight", onOff(h.active()),
+            h.limited() ? blocks((int)Math.round(h.range())) : Component.translatable("command.betterxray.render_distance"),
+            h.viewChunks(), h.scannedSections(), h.queuedSections(), h.sectionsWithHits(), h.indexedPositions(), h.veins()));
+        send(Component.translatable("debug.betterxray.stats.highlight_scan", Math.round(h.farthestScanned()),
+            Component.literal(String.valueOf(h.outsideSections())).withStyle(h.outsideSections() > 0 ? ChatFormatting.RED : ChatFormatting.GREEN),
+            h.lastTickSections(), millis(h.lastTickNanos()), millis(h.maxTickNanos()), h.drawnBoxes(), h.drawnTracers()));
+        var s = StructureFinder.stats();
+        send(s.available() ? Component.translatable("debug.betterxray.stats.structures", s.found(), s.centerX(), s.centerZ(),
+                s.radius(), s.chunks(), millis(s.scanNanos()), s.drawnBoxes())
+            : Component.translatable("debug.betterxray.stats.structures_unavailable"));
+        return 1;
+    }
+
+    private static String millis(long nanos) { return String.format(Locale.ROOT, "%.2f", nanos / 1_000_000.0); }
 
     // ---- overview ----
 

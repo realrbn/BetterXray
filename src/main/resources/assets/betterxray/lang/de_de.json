@@ -198,5 +198,11 @@
   "command.betterxray.help.highlight": "Highlight samt Blockliste, Tracern und Reichweite",
   "command.betterxray.help.esp": "Mob-/Spieler-ESP-Hauptschalter, Tracer und Reichweite",
   "command.betterxray.help.tags": "Block-Tags und ihre Blöcke finden",
-  "command.betterxray.help.status": "alle aktuellen Einstellungen anzeigen"
+  "command.betterxray.help.status": "alle aktuellen Einstellungen anzeigen",
+  "debug.betterxray.violation": "[Better X-Ray Debug] Invariante verletzt – %s: %s",
+  "debug.betterxray.status": "Debug-Modus: %s · Bereiche %s · Sections %s · HUD %s · %s verletzte Invarianten (%s Verstöße)",
+  "debug.betterxray.stats.highlight": "Highlight: %s · Reichweite %s · Sicht %s Chunks · %s Sections gescannt, %s in der Warteschlange, %s mit Treffern · %s Positionen · %s Adern",
+  "debug.betterxray.stats.highlight_scan": "Highlight-Scan: entfernteste Section %s Blöcke · %s außerhalb des erlaubten Bereichs · letzter Tick %s Sections in %s ms (max. %s ms) · gezeichnet %s Boxen, %s Tracer",
+  "debug.betterxray.stats.structures": "Struktur-Finder: %s gefunden · Scan um Chunk %s,%s, Radius %s · %s Chunks in %s ms gelesen · %s Boxen gezeichnet",
+  "debug.betterxray.stats.structures_unavailable": "Struktur-Finder: nicht verfügbar (nur Einzelspieler)"
 }

@@ -256,6 +256,26 @@ Target names are `<minecraft>`, `<minecraft>-neoforge` and `<minecraft>-forge`. 
 `versions/<target>/build/libs`. On Windows use `gradlew.bat`. The first build needs internet access
 to download dependencies.
 
+### Debug mode
+
+A developer debug mode checks internal invariants of Highlight and the Structure Finder, for
+example that no section outside the highlight range (plus its scan margin) is scanned, kept or
+drawn. Each broken invariant is reported once to the log and the chat. It is off by default and
+switched on with `-Dbetterxray.debug=true` or in game:
+
+| Command | Effect |
+|---------|--------|
+| `/bxray debug [on\|off]` | show the state and broken invariants, or switch the checks |
+| `/bxray debug hud [on\|off]` | F3-style overlay with live counters: X-Ray render path, rebuilds, Highlight scan area and timings, ESP targets, Hide Mobs, Structure Finder scans |
+| `/bxray debug bounds [on\|off]` | draw the scanned chunk columns (green: in range, yellow: scan margin, red: outside), queued sections (white), the highlight range as a wireframe sphere with the scan margin as a second hull, the ESP range (orange) and the Structure Finder's scan area (magenta) |
+| `/bxray debug sections [on\|off]` | like `bounds`, but every scanned section as its own box |
+| `/bxray debug stats` | scan and draw counters of Highlight and the Structure Finder in the chat |
+| `/bxray debug clear` | forget reported violations |
+
+The HUD is hidden while the F3 screen is open.
+
+Gametest and validation runs switch it on and fail when an invariant broke.
+
 ## License
 
 [MIT](LICENSE)

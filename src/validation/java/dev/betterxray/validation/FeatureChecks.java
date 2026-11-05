@@ -5,6 +5,8 @@ import dev.betterxray.config.MobEspGroup;
 import dev.betterxray.config.XRayConfig;
 import dev.betterxray.config.XRayConfigManager;
 import dev.betterxray.gui.StructureScreen;
+import dev.betterxray.debug.DebugHud;
+import dev.betterxray.debug.DebugMode;
 import dev.betterxray.render.HighlightCache;
 import dev.betterxray.render.MobEspRenderer;
 import dev.betterxray.render.StructureFinder;
@@ -94,11 +96,19 @@ final class FeatureChecks {
                 check(HighlightCache.lastDrawnBoxes() == 2 && HighlightCache.lastDrawnTracers() == 2,
                     "Vein and debris: two boxes, two tracers, got " + HighlightCache.lastDrawnBoxes() + "/" + HighlightCache.lastDrawnTracers());
                 shot(mc, "34-veins");
+                checkDebug("highlight range 24");
+                DebugMode.setBounds(true);
+                DebugMode.setHud(true);
                 c.groupVeins = false;
                 XRayConfigManager.save();
             }
             case 7 -> {
                 check(HighlightCache.lastDrawnBoxes() == 3, "Group Veins off: one box per block, got " + HighlightCache.lastDrawnBoxes());
+                check(DebugHud.lines().stream().anyMatch(line -> line.startsWith("Highlight: range "))
+                    && DebugHud.lines().stream().anyMatch(line -> line.startsWith("X-Ray: ")), "Debug HUD lines: " + DebugHud.lines());
+                shot(mc, "34b-debug-hud");
+                DebugMode.setHud(false);
+                DebugMode.setBounds(false);
                 c.highlightBlockColors.put("minecraft:ancient_debris", 0xffffff00);
                 XRayConfigManager.save();
             }
@@ -162,11 +172,13 @@ final class FeatureChecks {
                 var found = StructureFinder.found();
                 check(found.size() == 1 && found.get(0).group().key().equals("minecraft:igloos"), "Structure Finder finds the igloo, got " + found.size());
                 check(StructureFinder.groups().size() > 10, "Structure picker lists the structure sets");
+                checkDebug("structure finder");
                 mc.setScreen(new StructureScreen(null));
             }
             case 13 -> {
                 check(mc.screen instanceof StructureScreen, "Structure Finder screen opens");
                 shot(mc, "37-structures");
+                checkDebug("end of the feature checks");
                 mc.setScreen(null);
                 XRayConfigManager.reset();
                 XRayConfigManager.save();
@@ -176,6 +188,11 @@ final class FeatureChecks {
             default -> { return true; }
         }
         return false;
+    }
+
+    /** Debug mode is on in validation runs (-Dbetterxray.debug=true); no invariant may have broken. */
+    private static void checkDebug(String where) {
+        check(DebugMode.violations().isEmpty(), "Debug invariants broken (" + where + "): " + DebugMode.violations());
     }
 
     private static void set(boolean xray, boolean caveFind, float opacity) {

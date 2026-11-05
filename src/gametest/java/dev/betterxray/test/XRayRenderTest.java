@@ -20,6 +20,8 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.world.level.block.Blocks;
+import dev.betterxray.debug.DebugHud;
+import dev.betterxray.debug.DebugMode;
 
 /** Real rendering integration fixture; this test mod is excluded from the release jar. */
 public final class XRayRenderTest implements FabricClientGameTest {
@@ -247,6 +249,34 @@ public final class XRayRenderTest implements FabricClientGameTest {
                 if (HighlightCache.isScanned(farOre) || HighlightCache.isScanned(highOre))
                     throw new AssertionError("Highlight range 16 scanned sections far outside the range");
             });
+            // Debug mode (on in test runs): the scan area matches the range, and its drawing works.
+            context.waitTicks(10);
+            context.runOnClient(client -> {
+                var stats = HighlightCache.stats(client);
+                if (!stats.limited() || stats.outsideSections() != 0 || stats.farthestScanned() > 16 + 32 + 28)
+                    throw new AssertionError("Highlight range 16 debug stats: " + stats);
+                DebugMode.assertClean("highlight range 16");
+                DebugMode.setBounds(true);
+                DebugMode.setHud(true);
+            });
+            context.waitTicks(11);
+            context.runOnClient(client -> {
+                var lines = DebugHud.lines();
+                for (String start : new String[] {"Better X-Ray debug | checks: ok", "X-Ray: ", "Highlight: range 16 blocks", "  farthest scan ", "ESP: ", "Structures: "})
+                    if (lines.stream().noneMatch(line -> line.startsWith(start)))
+                        throw new AssertionError("Debug HUD has no line starting with '" + start + "': " + lines);
+            });
+            context.takeScreenshot("01g-highlight-debug-bounds");
+            // Every scanned section on its own instead of one box per chunk column.
+            context.runOnClient(client -> DebugMode.setSections(true));
+            context.waitTicks(11);
+            context.takeScreenshot("01h-highlight-debug-sections");
+            context.runOnClient(client -> {
+                DebugMode.setHud(false);
+                DebugMode.setBounds(false);
+                if (DebugMode.sections()) throw new AssertionError("Section boxes stay on without bounds");
+                DebugMode.assertClean("highlight debug bounds");
+            });
             context.runOnClient(client -> {
                 Mc.setScreen(client, new HighlightScreen(null));
                 String expected = net.minecraft.network.chat.Component.translatable("option.betterxray.range",
@@ -262,6 +292,7 @@ public final class XRayRenderTest implements FabricClientGameTest {
             });
             // Raising the range scans the sections that are now inside it.
             context.waitFor(client -> highlightCached(farOre) && highlightCached(highOre), 200);
+            context.runOnClient(client -> DebugMode.assertClean("highlight range back to the render distance"));
             world.getServer().runCommand("setblock 160 63 74 minecraft:air");
             world.getServer().runCommand("setblock 160 140 -10 minecraft:air");
             TestCompat.packets(context, world);
@@ -515,6 +546,7 @@ public final class XRayRenderTest implements FabricClientGameTest {
             context.runOnClient(client -> {
                 XRayConfigManager.reset(); XRayRenderController.apply();
                 if (XRayState.enabled()) throw new AssertionError("Reset failed");
+                DebugMode.assertClean("end of the render test");
             });
         }
     }
