@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="betterxray"
+version="${version}"
+displayName="Better X-Ray"
+authors="realrbn"
+logoFile="assets/betterxray/icon.png"
+# Client-only: servers with or without the mod accept each other's clients.
+displayTest="IGNORE_ALL_VERSION"
+description='''Configurable X-Ray, block highlighting and per-mob ESP with colored outlines or boxes.'''
+
+[[dependencies.betterxray]]
+modId="forge"
+mandatory=true
+versionRange="[${forge_version},)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.betterxray]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="CLIENT"

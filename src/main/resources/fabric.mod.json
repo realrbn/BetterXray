@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "betterxray",
+  "version": "${version}",
+  "name": "Better X-Ray",
+  "authors": ["realrbn"],
+  "description": "Configurable X-Ray, block highlighting and per-mob ESP with colored outlines or boxes.",
+  "icon": "assets/betterxray/icon.png",
+  "environment": "client",
+  "license": "MIT",
+  "entrypoints": {
+    "client": ["dev.betterxray.XRayClient"],
+    "modmenu": ["dev.betterxray.compat.ModMenuIntegration"]
+  },
+  "mixins": ["betterxray.mixins.json", "betterxray.sodium.mixins.json", "betterxray.iris.mixins.json"],
+  "depends": {"fabricloader": ">=${loader_version}", "minecraft": "${minecraft_version}", "java": ">=${java_version}", "fabric-api": ">=${fabric_api_version}"},
+  "breaks": {"sodium": "${sodium_breaks}"},
+  "suggests": {"modmenu": "*"},
+  "custom": {"betterxray:iris_supported": "${iris_supported}"}
+}

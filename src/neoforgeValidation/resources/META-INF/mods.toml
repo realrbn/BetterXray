@@ -1,0 +1,8 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="betterxray_validation"
+version="1.0"
+displayName="Better X-Ray development validation fixture"

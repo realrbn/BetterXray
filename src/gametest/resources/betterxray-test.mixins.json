@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.betterxray.test.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["EntityExtractAccess", "ChatAccess", "WidgetAccess"],
+  "injectors": {"defaultRequire": 1}
+}

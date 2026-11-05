@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "betterxray_validation",
+  "version": "1.0.0",
+  "name": "Better X-Ray validation fixture",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.betterxray.validation.ClientValidation"
+    ]
+  },
+  "depends": {
+    "betterxray": "*"
+  },
+  "mixins": [
+    "betterxray_validation.mixins.json"
+  ]
+}

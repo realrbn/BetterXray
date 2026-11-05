@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------
+# Better X-Ray - .gitignore (gilt für alle Unterprojekte)
+# ---------------------------------------------------------------
+
+# --- Gradle / Build-Ausgaben ---
+.gradle/
+.kotlin/
+build/
+out/
+target/
+local.properties
+
+# --- Minecraft-Entwicklungsumgebung (Testwelten, Configs, Logs) ---
+run/
+run-server/
+runs/
+run-validation/
+run-prod-validation/
+logs/
+crash-reports/
+hs_err_pid*.log
+
+# --- Kompilierte Artefakte ---
+# Gradle-Wrapper-JAR muss im Repo bleiben, alle anderen JARs nicht
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+*.class
+*.zip
+*.tar.gz
+# Fertige Release-JARs gehören auf GitHub "Releases", nicht ins Repo
+release/
+**/release/
+
+# --- Logs ---
+*.log
+
+# --- Recherche-/Scratch-Ordner ---
+.research/
+**/.research/
+
+# --- Validierung / Testläufe ---
+# Screenshots, Logs, Testwelten und Testberichte sind lokale Artefakte.
+# (Der Quellcode der Test-Fixtures unter src/validation, src/neoforgeValidation
+# und src/gametest bleibt im Repo, weil die Build-Skripte ihn referenzieren.)
+/validation/
+RESULTS.md
+
+# --- Interne Entwicklungsnotizen (nur lokal) ---
+/DEVELOPMENT.md
+/TESTING.md
+/SHADERS.md
+
+# --- Lokale Tool-Konfiguration ---
+.claude/
+
+# --- IDEs ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+.vs/
+*.code-workspace
+
+# --- Betriebssystem ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Geheimnisse / lokale Konfiguration ---
+.env
+*.pem
+*.key
+*.keystore
+*.jks

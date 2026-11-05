@@ -1,0 +1,123 @@
+// Forge 1.21.1 ("1.21.1-forge" in settings.gradle.kts), built with ForgeGradle 7. The shared src tree
+// is the same as for Fabric and NeoForge; Stonecutter's "forge" constant selects the loader-specific
+// code. Forge 1.21.1 runs on official names: no reobfuscation, no refmap.
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle'
+}
+
+def minecraftVersion = stonecutter.current.version
+version = project.mod_version
+group = project.group
+base.archivesName = "betterxray-${minecraftVersion}-forge"
+
+def javaVersion = project.java_version.toInteger()
+def mixinExtras = project.mixinextras_version
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = javaVersion
+    options.compilerArgs.addAll(['-Xmaxerrs', '1000'])
+}
+
+// Development validation fixture (separate mod "betterxray_validation", never in the release jar). The
+// source set is shared with NeoForge (src/neoforgeValidation, "forge" constant). ForgeGradle 7 only runs
+// the userdev configurations, so the client run becomes the validation run:
+// ./gradlew :1.21.1-forge:runClient -Pvalidation (jar installed into run-validation/mods).
+def validationRun = hasProperty('validation')
+sourceSets.create('neoforgeValidation') {
+    compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+}
+tasks.named('processNeoforgeValidationResources') { exclude 'META-INF/neoforge.mods.toml' }
+def validationJar = tasks.register('validationJar', Jar) {
+    from sourceSets.neoforgeValidation.output
+    archiveClassifier = 'validation'
+    destinationDirectory = layout.buildDirectory.dir('validation')
+}
+def installValidation = tasks.register('installValidation', Copy) {
+    from validationJar
+    into layout.projectDirectory.dir('run-validation/mods')
+}
+
+minecraft {
+    mappings channel: 'official', version: minecraftVersion
+    runs {
+        configureEach {
+            workingDir = layout.projectDirectory.dir('run')
+            systemProperty 'forge.logging.console.level', 'info'
+            args '--mixin.config=betterxray.mixins.json', '--mixin.config=betterxray.sodium.mixins.json'
+        }
+        register('client') {
+            if (validationRun) {
+                workingDir = layout.projectDirectory.dir('run-validation')
+                systemProperty 'betterxray.updateCheck.url', 'off'
+            }
+        }
+        register('server') {
+            workingDir = layout.projectDirectory.dir('run-server')
+            args '--nogui'
+        }
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    maven { url = 'https://api.modrinth.com/maven' }
+    mavenCentral()
+}
+
+// Forge 1.21.1 does not ship MixinExtras: nested as a Jar-in-Jar library (FML reads META-INF/jarjar).
+configurations { bundled { transitive = false } }
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${minecraftVersion}-${project.forge_version}")
+    compileOnly "io.github.llamalad7:mixinextras-common:${mixinExtras}"
+    annotationProcessor "io.github.llamalad7:mixinextras-common:${mixinExtras}"
+    runtimeOnly "io.github.llamalad7:mixinextras-forge:${mixinExtras}"
+    bundled "io.github.llamalad7:mixinextras-forge:${mixinExtras}"
+}
+
+def jarJarMetadata = tasks.register('jarJarMetadata') {
+    def output = layout.buildDirectory.file('nestedJars/META-INF/jarjar/metadata.json')
+    inputs.property 'version', mixinExtras
+    outputs.file output
+    doLast {
+        def jar = configurations.bundled.singleFile.name
+        output.get().asFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([jars: [[
+            identifier: [group: 'io.github.llamalad7', artifact: 'mixinextras-forge'],
+            version: [range: "[${mixinExtras},)", artifactVersion: mixinExtras],
+            path: "META-INF/jarjar/${jar}", isObfuscated: false]]]))
+    }
+}
+
+if (validationRun) tasks.matching { it.name == 'runClient' }.configureEach { dependsOn installValidation }
+
+// No Sodium for Forge 1.21.1 (Embeddium exists for NeoForge only): its mixins are not compiled.
+sourceSets.main.java.exclude 'dev/betterxray/compat/sodium/**'
+
+tasks.named('processResources') {
+    def props = [version: project.version.toString(), minecraft_version: minecraftVersion,
+                 forge_version: project.forge_version.toString(), java_version: javaVersion.toString()]
+    inputs.properties props
+    filesMatching(['META-INF/mods.toml', '*.mixins.json']) { expand props }
+    exclude 'fabric.mod.json', 'META-INF/neoforge.mods.toml', 'betterxray.iris.mixins.json'
+    exclude 'assets/betterxray/shaders/core/faint_model_legacy.json'
+}
+
+tasks.named('jar', Jar) {
+    dependsOn jarJarMetadata
+    from(layout.buildDirectory.dir('nestedJars'))
+    from(configurations.bundled) { into 'META-INF/jarjar' }
+    manifest.attributes('MixinConfigs': 'betterxray.mixins.json,betterxray.sodium.mixins.json')
+}
+
+tasks.withType(Jar).configureEach {
+    from(rootProject.file('LICENSE')) { rename { "LICENSE_${base.archivesName.get()}" } }
+}

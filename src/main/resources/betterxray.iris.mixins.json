@@ -1,0 +1,8 @@
+{
+  "required": false,
+  "package": "dev.betterxray.compat.iris",
+  "compatibilityLevel": "JAVA_${java_version}",
+  "plugin": "dev.betterxray.mixin.XRayMixinPlugin",
+  "client": [],
+  "injectors": {"defaultRequire": 0}
+}
