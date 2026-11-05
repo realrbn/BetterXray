@@ -63,16 +63,18 @@ jar installed still starts, but the mod does nothing there.
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
-| **X** | Toggle X-Ray |
-| **G** | Open the configuration |
-| **L** | Toggle Fullbright |
-| **U** | Toggle Cave-Find |
-| **J** | Toggle Mob/Player ESP (master switch) |
-| **K** | Toggle ESP tracers |
-| *unbound* | Cycle X-Ray preset |
-| *unbound* | Add the looked-at block to the active preset |
+| Key     |Action                              |
+| ------- |----------------------------------- |
+| X       |Toggle X-ray                        |
+| L       |Toggle Fullbright                   |
+| G       |Open config menu                    |
+| J       |Toggle Mob/Player ESP               |
+| K       |Toggle ESP-Tracers                  |
+| H       |Toggle Highlight                    |
+| U       |Toggle Cave-Find                    |
+| Unbound |Toggle Highlight-Tracers            |
+| Unbound |Add Looked-at-Block to X-ray Preset |
+| Unbound |Cycle X-ray Preset                  |
 
 All keys can be rebound under **Controls → Better X-Ray**.
 
@@ -143,20 +145,67 @@ as far as the client knows about them (the server's entity tracking range).
 
 | Command | Effect |
 |---------|--------|
-| `/betterxray on`, `off`, `toggle` | Switch X-Ray |
-| `/betterxray add <block\|#tag> …`, `remove …` | Edit the active preset (several entries, tab completion) |
-| `/betterxray list`, `clear` | Show or empty the active preset |
-| `/betterxray preset [1-3]`, `preset rename <name>`, `preset reset` | Show, switch, rename or reset presets |
-| `/betterxray opacity <0-80>` | Terrain opacity in percent |
-| `/betterxray water`, `lava`, `fullbright`, `cavefind` `[on\|off]` | Switches; without on/off they toggle |
-| `/betterxray hidemobs [off\|walls\|all]` | Hide Mobs mode; without an argument it cycles |
-| `/betterxray highlight [on\|off]`, `highlight add/remove/list/clear …` | Highlighting and its block list |
-| `/betterxray highlight tracers [on\|off]`, `highlight range <8-512\|render>` | Highlight tracers and range |
-| `/betterxray esp [on\|off]`, `esp tracers [on\|off]`, `esp range <8-512\|unlimited>` | ESP master switch, tracers and range |
-| `/betterxray tags [search]`, `tag <#tag>` | Find block tags and list the blocks of one |
-| `/betterxray status`, `help` | Show all current settings or the command overview |
+| `/betterxray` | Show the command overview |
+| `/betterxray help` | Show the command overview |
+| `/betterxray status` | Show all current settings |
+| `/betterxray on` | Turn X-Ray on |
+| `/betterxray off` | Turn X-Ray off |
+| `/betterxray toggle` | Toggle X-Ray |
+| `/betterxray add <block\|#tag> …` | Add blocks or tags to the active preset (several entries separated by spaces, tab completion) |
+| `/betterxray remove <block\|#tag> …` | Remove blocks or tags from the active preset (several entries separated by spaces, tab completion) |
+| `/betterxray list` | List all entries of the active preset |
+| `/betterxray clear` | Remove all entries from the active preset |
+| `/betterxray preset` | Show all three presets and which one is active |
+| `/betterxray preset <1-3>` | Switch to preset 1, 2 or 3 |
+| `/betterxray preset rename <name>` | Rename the active preset (max. 32 characters, spaces allowed) |
+| `/betterxray preset reset` | Reset the active preset to its default name and blocks (Preset 1: default ores etc., Presets 2–3: empty) |
+| `/betterxray opacity` | Show the current terrain opacity |
+| `/betterxray opacity <0-80>` | Set the terrain opacity in percent |
+| `/betterxray water` | Toggle water visibility |
+| `/betterxray water on` | Show water |
+| `/betterxray water off` | Hide water |
+| `/betterxray lava` | Toggle lava visibility |
+| `/betterxray lava on` | Show lava |
+| `/betterxray lava off` | Hide lava |
+| `/betterxray fullbright` | Toggle Fullbright |
+| `/betterxray fullbright on` | Turn Fullbright on |
+| `/betterxray fullbright off` | Turn Fullbright off |
+| `/betterxray cavefind` | Toggle Cave-Find |
+| `/betterxray cavefind on` | Turn Cave-Find on |
+| `/betterxray cavefind off` | Turn Cave-Find off |
+| `/betterxray hidemobs` | Cycle Hide Mobs: Off → Behind Walls → All |
+| `/betterxray hidemobs off` | Show all mobs |
+| `/betterxray hidemobs walls` | Hide mobs behind walls |
+| `/betterxray hidemobs all` | Hide all mobs |
+| `/betterxray highlight` | Toggle block highlighting |
+| `/betterxray highlight on` | Turn block highlighting on |
+| `/betterxray highlight off` | Turn block highlighting off |
+| `/betterxray highlight add <block\|#tag> …` | Add blocks or tags to the highlight list (several entries separated by spaces, tab completion) |
+| `/betterxray highlight remove <block\|#tag> …` | Remove blocks or tags from the highlight list (several entries separated by spaces, tab completion) |
+| `/betterxray highlight list` | List all entries of the highlight list |
+| `/betterxray highlight clear` | Remove all entries from the highlight list |
+| `/betterxray highlight tracers` | Toggle highlight tracers |
+| `/betterxray highlight tracers on` | Turn highlight tracers on |
+| `/betterxray highlight tracers off` | Turn highlight tracers off |
+| `/betterxray highlight range` | Show the current highlight range |
+| `/betterxray highlight range <8-512>` | Set the highlight range in blocks (rounded to 8-block steps) |
+| `/betterxray highlight range render` | Highlight range follows the render distance |
+| `/betterxray esp` | Toggle Mob/Player ESP (master switch) |
+| `/betterxray esp on` | Turn ESP on |
+| `/betterxray esp off` | Turn ESP off |
+| `/betterxray esp tracers` | Toggle ESP tracers |
+| `/betterxray esp tracers on` | Turn ESP tracers on |
+| `/betterxray esp tracers off` | Turn ESP tracers off |
+| `/betterxray esp range` | Show the current ESP range |
+| `/betterxray esp range <8-512>` | Set the ESP range in blocks (rounded to 8-block steps) |
+| `/betterxray esp range unlimited` | Remove the ESP range limit |
+| `/betterxray tags` | List all block tags of the current world (with block count) |
+| `/betterxray tags <search>` | List all block tags containing the search text |
+| `/betterxray tag <#tag>` | List all blocks of a tag (tab completion) |
 
-Block IDs without a namespace default to `minecraft:` (`diamond_ore`, `#ores`).
+Block IDs without a namespace default to `minecraft:` (`diamond_ore`, `#ores`). `tags` and `tag`
+only work inside a world. Lists longer than 60 entries are cut off in the chat.
+
 
 ## Configuration
 
