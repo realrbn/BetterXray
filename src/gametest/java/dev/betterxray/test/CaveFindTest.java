@@ -22,7 +22,7 @@ import java.nio.file.Path;
  */
 public final class CaveFindTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null) return;
+        if (TestCompat.skip(this)) return;
         if (System.getProperty("betterxray.test.persistence") != null) return;
         context.runOnClient(client -> {
             XRayConfigManager.reset();

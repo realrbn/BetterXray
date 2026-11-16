@@ -41,7 +41,7 @@ public final class MobEspTest implements FabricClientGameTest {
     private static final int OTHER_PLAYER_ID = Integer.MAX_VALUE - 7;
 
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null) return;
+        if (TestCompat.skip(this)) return;
         if (System.getProperty("betterxray.test.persistence") != null) return;
         context.runOnClient(client -> {
             XRayConfigManager.reset();

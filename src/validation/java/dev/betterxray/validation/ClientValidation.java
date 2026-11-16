@@ -100,6 +100,8 @@ public final class ClientValidation implements ClientModInitializer {
                 if(step>0 && !fixtureCompiled(mc) && ++meshWait<600) return;
                 ticks=0; meshWait=0;
                 var c=XRayConfigManager.get();
+                // -PonlyWireframe: after the fixture world is set up, only the Wireframe steps of FeatureChecks run.
+                if(FeatureChecks.ONLY_WIREFRAME && step==1) step=46;
                 switch(step++) {
                     case 0 -> {
                         mc.options.renderDistance().set(8); mc.options.cloudStatus().set(CloudStatus.OFF); mc.options.hideGui=true; mc.options.pauseOnLostFocus=false;
@@ -350,7 +352,8 @@ public final class ClientValidation implements ClientModInitializer {
                         c.getActiveVisibleBlocks().add("missing:unavailable_block"); c.getActiveVisibleBlocks().add("bad id!");
                         c.terrainOpacity=.27f; c.fullbright=true;
                         XRayRenderController.apply();
-                        Files.writeString(Path.of("validation-result.txt"),"PASS ["+activeRenderer()+" renderer]: world entered, key queues/defaults/rebinding, presets, config reload/migration, Quick Add, GUI/search, rendering captures. Visual inspection required.\n");
+                        if(FeatureChecks.ONLY_WIREFRAME) Files.writeString(Path.of("validation-result.txt"),"PASS ["+activeRenderer()+" renderer]: Wireframe mode only (-PonlyWireframe).\n");
+                        else Files.writeString(Path.of("validation-result.txt"),"PASS ["+activeRenderer()+" renderer]: world entered, key queues/defaults/rebinding, presets, config reload/migration, Quick Add, GUI/search, rendering captures. Visual inspection required.\n");
                         finished=true; XRayClient.LOGGER.info("[XRayValidation] PASS; screenshots ready");
                         mc.stop();
                     }

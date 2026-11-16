@@ -95,7 +95,9 @@ public final class DebugHud {
             : Math.round(snapshot.opacity() * 100) + "%";
         out.add(new Line("X-Ray: " + onOff(snapshot.enabled()) + ", Cave-Find " + onOff(snapshot.caveFind())
             + " | " + RendererCompatibility.debugPath() + (shader == null ? "" : shader ? " + shader pack" : " + Iris")
-            + " | faint " + faint, XRayState.supported() ? TEXT : BAD));
+            + " | faint " + faint + (!snapshot.wireframe() ? "" : XRayState.wireframe()
+                ? " | wireframe " + Math.round(snapshot.wireframeOpacity() * 100) + "%" : " | wireframe (inactive)"),
+            XRayState.supported() ? TEXT : BAD));
         long since = XRayRenderController.lastRebuildMillis();
         out.add(new Line("  " + (XRayState.supported() ? "" : "UNSUPPORTED, ") + snapshot.visible().size()
             + " blocks selected | rebuilds " + XRayRenderController.rebuilds()

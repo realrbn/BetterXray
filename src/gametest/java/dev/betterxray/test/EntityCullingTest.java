@@ -24,7 +24,7 @@ public final class EntityCullingTest implements FabricClientGameTest {
 
     @Override public void runTest(ClientGameTestContext context) {
         if (!FabricLoader.getInstance().isModLoaded("entityculling")) return;
-        if (TestCompat.shaderPack() != null || System.getProperty("betterxray.test.persistence") != null) return;
+        if (TestCompat.skip(this) || System.getProperty("betterxray.test.persistence") != null) return;
         context.runOnClient(client -> {
             XRayConfigManager.reset();
             var config = XRayConfigManager.get();

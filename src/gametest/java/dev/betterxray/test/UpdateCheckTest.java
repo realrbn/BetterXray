@@ -27,7 +27,7 @@ public final class UpdateCheckTest implements FabricClientGameTest {
     private static final String TEXT = "[Better X-Ray: New Version is available. Update on Curseforge]";
 
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null) return;
+        if (TestCompat.skip(this)) return;
         if (System.getProperty("betterxray.test.persistence") != null) return;
         checkEvaluation();
         checkVersions();

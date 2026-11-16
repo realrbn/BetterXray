@@ -9,6 +9,7 @@
       "dev.betterxray.test.ResponsiveGuiTest",
       "dev.betterxray.test.XRayRenderTest",
       "dev.betterxray.test.CaveFindTest",
+      "dev.betterxray.test.WireframeTest",
       "dev.betterxray.test.EntityCullingTest",
       "dev.betterxray.test.TagsCommandsTest",
       "dev.betterxray.test.StructureFinderTest",

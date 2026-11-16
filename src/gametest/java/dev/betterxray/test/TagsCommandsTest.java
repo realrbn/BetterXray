@@ -27,7 +27,7 @@ public final class TagsCommandsTest implements FabricClientGameTest {
     private static final String DIAMONDS = "#minecraft:diamond_ores";
 
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null || System.getProperty("betterxray.test.persistence") != null) return;
+        if (TestCompat.skip(this) || System.getProperty("betterxray.test.persistence") != null) return;
         context.runOnClient(client -> {
             XRayConfigManager.reset();
             XRayConfigManager.get().getActivePreset().visibleBlocks = new LinkedHashSet<>(Set.of(DIAMONDS));

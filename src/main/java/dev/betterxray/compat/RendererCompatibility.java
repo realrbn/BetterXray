@@ -84,6 +84,16 @@ public final class RendererCompatibility {
             XRayRenderController.requestRebuild();
             XRayClient.LOGGER.warn("[XRay] Rendering support {} (unsupported renderer or shader pack)", supported ? "restored" : "disabled");
         }
+        // Wireframe mode: needs the device's line polygon mode (optional on Vulkan).
+        //? if >=26.3 {
+        boolean noWireframe = com.mojang.blaze3d.systems.RenderSystem.tryGetDevice() != null
+            && !com.mojang.blaze3d.systems.RenderSystem.isWireframeAvailable();
+        if (noWireframe != XRayState.wireframeUnavailable()) {
+            XRayState.setWireframeUnavailable(noWireframe);
+            XRayRenderController.requestRebuild();
+            XRayClient.LOGGER.info("[XRay] Wireframe mode: {}", noWireframe ? "not supported by the graphics device" : "available");
+        }
+        //?}
         // separateAo packs ignore the faint opacity: hide faint terrain, or (experimental) encode it
         // for the patched shaders.
         boolean separateAo = IrisCompat.faintUnsupported();

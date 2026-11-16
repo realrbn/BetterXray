@@ -14,7 +14,7 @@ public abstract class ModelSubmitMixin {
     @Inject(method = "submitModel", at = @At("HEAD"), cancellable = true)
     private void xray$hide(CallbackInfo ci) {
         // Faint models cast no shadows under a shader pack (Iris shadow pass).
-        if (BlockEntityContext.faint() && (XRayState.hideTerrain() || IrisCompat.shadowPass())) ci.cancel();
+        if (BlockEntityContext.faint() && (XRayState.hideFaintModels() || IrisCompat.shadowPass())) ci.cancel();
     }
     @ModifyVariable(method = "submitModel", at = @At("HEAD"), argsOnly = true)
     private RenderType xray$type(RenderType type) { return BlockEntityContext.faint() ? XRayPipelines.faintModel(type) : type; }

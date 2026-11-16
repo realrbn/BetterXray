@@ -113,6 +113,8 @@ if (hasClientGameTests) {
         property("betterxray.updateCheck.url", "off")
         // Invariant checks on; the tests assert that none broke (DebugMode.assertClean).
         property("betterxray.debug", "true")
+        // -PonlyTest=WireframeTest runs a single test class (TestCompat.skip).
+        if (hasProperty("onlyTest")) property("betterxray.test.only", project.property("onlyTest").toString())
     }
 
     // Shader baseline: copies the packs from <root>/run/shaderpacks into the freshly
@@ -194,6 +196,8 @@ if (hasClientGameTests) {
                 // The test JVM ships a newer LWJGL than 1.20.1 pins; Sodium 0.5 would refuse to start.
                 property("sodium.checks.issue2561", "false")
                 if (project.hasProperty("persistence")) property("betterxray.persistence", project.property("persistence").toString())
+                // -PonlyWireframe: only the Wireframe steps (FeatureChecks.ONLY_WIREFRAME).
+                if (project.hasProperty("onlyWireframe")) property("betterxray.validation.only", "wireframe")
                 if (project.hasProperty("realUpdateCheck")) property("betterxray.validation.realUpdateCheck", "true")
             }
         }

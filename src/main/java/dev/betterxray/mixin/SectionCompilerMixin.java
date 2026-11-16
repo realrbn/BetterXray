@@ -59,7 +59,7 @@ public abstract class SectionCompilerMixin {
                     return;
                 }
                 if (hide) return;
-                for (int i = 0; i < 4; i++) instance.setColor(i, XRayState.alpha(instance.getColor(i)));
+                for (int i = 0; i < 4; i++) instance.setColor(i, XRayState.terrainAlpha(instance.getColor(i)));
                 getOrBeginLayer(startedLayers, builders, ChunkSectionLayer.TRANSLUCENT).putBlockBakedQuad(qx, qy, qz, quad, instance);
             };
             original.call(renderer, faint, x, y, z, level, pos, state, model, seed);

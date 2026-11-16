@@ -34,7 +34,7 @@ public abstract class SodiumBlockMixin extends AbstractBlockRenderContext {
     private void xray$quad(MutableQuadViewImpl quad, float[] brightness, Material material, CallbackInfo ci) {
         if (!XRayState.enabled()) return;
         // Experimental shader opacity patch: the faint quad's opacity travels in Iris' block ID bits.
-        if (XRayState.faintEncoded() && !XRayState.selected(state) && !xray$cave) IrisCompat.beginFaintQuad(XRayState.opacity());
+        if (XRayState.faintEncoded() && !XRayState.selected(state) && !xray$cave) IrisCompat.beginFaintQuad(XRayState.terrainOpacity());
         for (int i = 0; i < 4; i++) {
             if (XRayState.selected(state)) {
                 quad.setLight(i, Mc.FULL_BRIGHT);
@@ -45,7 +45,7 @@ public abstract class SodiumBlockMixin extends AbstractBlockRenderContext {
                 quad.setLight(i, Mc.FULL_BRIGHT);
                 quad.setColor(i, quad.baseColor(i) | 0xff000000);
                 brightness[i] = Math.max(brightness[i], 0.5f);
-            } else quad.setColor(i, XRayState.alpha(quad.baseColor(i)));
+            } else quad.setColor(i, XRayState.terrainAlpha(quad.baseColor(i)));
         }
     }
     @Inject(method = "bufferQuad", at = @At("RETURN"))
@@ -100,7 +100,7 @@ public abstract class SodiumBlockMixin extends AbstractBlockRenderContext {
                 quad.color(i, quad.color(i) | 0xff000000);
                 // Cave walls keep more of their shade so their shape stays readable.
                 brightness[i] = Math.max(brightness[i], selected ? 0.8f : 0.5f);
-            } else quad.color(i, XRayState.alpha(quad.color(i)));
+            } else quad.color(i, XRayState.terrainAlpha(quad.color(i)));
         }
     }
 }
@@ -141,7 +141,7 @@ public abstract class SodiumBlockMixin {
         boolean xrayed = XRayState.enabled() && !XRayState.selected(ctx.state());
         xray$cave = xrayed && XRayState.caveBlock(ctx.world(), ctx.pos());
         if (xrayed && !xray$cave && XRayState.hideTerrain()) ci.cancel();
-        else SodiumTranslucency.begin(xrayed && !xray$cave ? XRayState.opacity() : 1f);
+        else SodiumTranslucency.begin(xrayed && !xray$cave ? XRayState.terrainOpacity() : 1f);
     }
 
     @Inject(method = "renderModel", at = @At("RETURN"), remap = false)

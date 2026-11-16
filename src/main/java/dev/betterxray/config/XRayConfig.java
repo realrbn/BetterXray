@@ -25,6 +25,13 @@ public final class XRayConfig {
     public HideMobs hideMobs = HideMobs.OFF;
     public boolean fullbright = false;
     public float terrainOpacity = 0.15f;
+    /**
+     * Wireframe mode: while X-Ray or Cave-Find is on, the unselected terrain is drawn
+     * as lines instead of faint faces. Preset blocks and Cave-Find faces stay filled.
+     */
+    public boolean wireframe = false;
+    /** Opacity of the Wireframe lines; replaces {@link #terrainOpacity} for the terrain while the mode is on. */
+    public float wireframeOpacity = 1.0f;
     public boolean showWater = true;
     public boolean showLava = true;
     /** Experimental (Fabric 26.3+, Iris): faint terrain under separateAo shader packs via a shader patch. */
@@ -313,6 +320,8 @@ public final class XRayConfig {
         mobEspRangeBlocks = sanitizeRange(mobEspRangeBlocks);
         if (!Float.isFinite(terrainOpacity)) terrainOpacity = 0.15f;
         terrainOpacity = Mth.clamp(terrainOpacity, 0.0f, 0.80f);
+        if (!Float.isFinite(wireframeOpacity)) wireframeOpacity = 1.0f;
+        wireframeOpacity = Mth.clamp(wireframeOpacity, 0.10f, 1.0f);
         if (activePreset < 0 || activePreset >= PRESET_COUNT) activePreset = 0;
 
         List<XRayPreset> repaired = new ArrayList<>(PRESET_COUNT);

@@ -51,16 +51,23 @@ public final class XRayMixinPlugin implements IMixinConfigPlugin {
             return List.of("SodiumBlockMixin", "SodiumCullMixin", "SodiumOcclusionMixin", "SodiumFluidMixin",
                 "SodiumFluidFacesMixin", "SodiumPipelineMixin", "SodiumSortMixin");
             //?} else if >=1.21 {
-            /*return List.of("SodiumBlockMixin", "SodiumCullMixin", "SodiumFluidMixin", "SodiumFluidFacesMixin", "SodiumSortMixin");
+            /*var sodium = new ArrayList<>(List.of("SodiumBlockMixin", "SodiumCullMixin", "SodiumFluidMixin", "SodiumFluidFacesMixin", "SodiumSortMixin"));
+            // Wireframe mode: Sodium 0.8 draws terrain with its own GL state.
+            sodium.add("SodiumWireframeMixin");
+            return sodium;
             *///?} else if forge {
             /*// Embeddium (Forge 1.20.1), a Sodium 0.5 fork with real vertex alpha: no shader patch.
-            return List.of("SodiumBlockMixin", "SodiumCullMixin", "SodiumFluidMixin", "SodiumFluidFacesMixin", "SodiumVertexMixin", "SodiumSortMixin");
+            return List.of("SodiumBlockMixin", "SodiumCullMixin", "SodiumFluidMixin", "SodiumFluidFacesMixin", "SodiumVertexMixin", "SodiumSortMixin",
+                "SodiumWireframeMixin");
             *///?} else {
             /*return List.of("SodiumBlockMixin", "SodiumCullMixin", "SodiumFluidMixin", "SodiumFluidFacesMixin",
-                "SodiumVertexMixin", "SodiumShaderOptionsMixin", "SodiumShaderParserMixin");
+                "SodiumVertexMixin", "SodiumShaderOptionsMixin", "SodiumShaderParserMixin", "SodiumWireframeMixin");
             *///?}
         }
         var mixins = new ArrayList<>(renderMixins());
+        // Wireframe mode under vanilla's improved transparency (OIT stage pipelines).
+        //? if >=26.3
+        mixins.add("OitWireframeMixin");
         mixins.addAll(GLASS_MIXINS);
         // Debug HUD where the loader has no HUD render event.
         //? if forge && >=1.21

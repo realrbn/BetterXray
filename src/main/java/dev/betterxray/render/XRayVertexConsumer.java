@@ -30,15 +30,21 @@ public final class XRayVertexConsumer implements VertexConsumer {
     private boolean lit;
 
     public XRayVertexConsumer(VertexConsumer delegate, boolean selected) {
-        this(delegate, selected, null, null, null, null);
+        this(delegate, selected, null, null, null, null, false);
+    }
+
+    /^* Faint block-entity model: follows the terrain opacity in the Wireframe mode too and stays filled. ^/
+    public static XRayVertexConsumer faintModel(VertexConsumer delegate) {
+        return new XRayVertexConsumer(delegate, false, null, null, null, null, true);
     }
 
     private XRayVertexConsumer(VertexConsumer delegate, boolean selected, VertexConsumer caveBuffer,
-                               VertexConsumer faintBuffer, BlockAndTintGetter level, BlockPos pos) {
+                               VertexConsumer faintBuffer, BlockAndTintGetter level, BlockPos pos, boolean model) {
         this.delegate = delegate;
         this.selected = selected;
         this.lit = selected;
-        this.opacity = XRayState.get().opacity();
+        // Terrain takes the line opacity in the Wireframe mode.
+        this.opacity = model ? XRayState.get().opacity() : XRayState.terrainOpacity();
         this.caveBuffer = caveBuffer;
         this.faintBuffer = faintBuffer;
         this.level = level;
@@ -52,7 +58,7 @@ public final class XRayVertexConsumer implements VertexConsumer {
      ^/
     public static XRayVertexConsumer cave(VertexConsumer caveBuffer, VertexConsumer faintBuffer,
                                           BlockAndTintGetter level, BlockPos pos) {
-        return new XRayVertexConsumer(faintBuffer, false, caveBuffer, faintBuffer, level, pos);
+        return new XRayVertexConsumer(faintBuffer, false, caveBuffer, faintBuffer, level, pos, false);
     }
 
     private int alpha(int a) { return lit ? 255 : Math.round(a * opacity); }

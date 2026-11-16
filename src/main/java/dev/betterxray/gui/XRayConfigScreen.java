@@ -170,19 +170,38 @@ public final class XRayConfigScreen extends Screen {
             XRayConfigManager.save();
             b.setMessage(hideMobsLabel(c.hideMobs));
         }).tooltip(Tooltip.create(Component.translatable("tooltip.betterxray.hide_mobs"))).build();
-        var opacity = new AbstractSliderButton(0, 0, columnWidth, GuiLayout.BUTTON_HEIGHT, Component.empty(), c.terrainOpacity / .80) {
+        // In the Wireframe mode the slider edits the line opacity (10-100 %) instead of the terrain
+        // opacity (0-80 %); the Wireframe button switches it over.
+        final class OpacitySlider extends AbstractSliderButton {
             // Under a shader pack that ignores the opacity (XRayState.faintUnsupported) the value stays
             // editable for later, but the label and tooltip say that it currently has no effect.
-            {
-                updateMessage();
+            OpacitySlider() {
+                super(0, 0, columnWidth, GuiLayout.BUTTON_HEIGHT, Component.empty(), 0);
+                sync();
                 if (XRayState.faintUnsupported()) setTooltip(Tooltip.create(Component.translatable("tooltip.betterxray.opacity_shader")));
             }
+            private boolean lines() { return XRayState.WIREFRAME_TARGET && c.wireframe && !XRayState.faintUnsupported(); }
+            void sync() {
+                value = lines() ? (c.wireframeOpacity - .10) / .90 : c.terrainOpacity / .80;
+                updateMessage();
+            }
             @Override protected void updateMessage() {
-                setMessage(Component.translatable(XRayState.faintUnsupported() ? "option.betterxray.opacity_shader" : "option.betterxray.opacity",
+                if (lines()) setMessage(Component.translatable("option.betterxray.wireframe_opacity", 10 + Math.round(value * 90)));
+                else setMessage(Component.translatable(XRayState.faintUnsupported() ? "option.betterxray.opacity_shader" : "option.betterxray.opacity",
                     Math.round(value * 80)));
             }
-            @Override protected void applyValue() { c.terrainOpacity = Math.round(value * 80) / 100f; }
-        };
+            @Override protected void applyValue() {
+                if (lines()) c.wireframeOpacity = (10 + Math.round(value * 90)) / 100f;
+                else c.terrainOpacity = Math.round(value * 80) / 100f;
+            }
+        }
+        var opacity = new OpacitySlider();
+        // Wireframe mode; applied with the other display options when the screen closes.
+        var wireframe = !XRayState.WIREFRAME_TARGET ? null : Button.builder(state("option.betterxray.wireframe", c.wireframe), b -> {
+            c.wireframe = !c.wireframe; b.setMessage(state("option.betterxray.wireframe", c.wireframe));
+            opacity.sync();
+        }).tooltip(Tooltip.create(Component.translatable(XRayState.wireframeUnavailable() ? "tooltip.betterxray.wireframe_device"
+            : XRayState.faintUnsupported() ? "tooltip.betterxray.wireframe_shader" : "tooltip.betterxray.wireframe"))).build();
         var water = Button.builder(state("option.betterxray.water", c.showWater), b -> {
             c.showWater = !c.showWater; b.setMessage(state("option.betterxray.water", c.showWater));
         }).build();
@@ -239,7 +258,10 @@ public final class XRayConfigScreen extends Screen {
         int right = twoColumns ? columnWidth + COLUMN_GAP : 0;
         int y = GuiLayout.row(left, 0, columnWidth, xray, fullbright) + m.rowGap;
         y = GuiLayout.row(left, y, columnWidth, caveFind, hideMobs) + m.rowGap;
-        y = GuiLayout.row(left, y, columnWidth, opacity) + m.rowGap;
+        if (wireframe != null) {
+            y = GuiLayout.row(left, y, columnWidth, wireframe, opacity) + m.rowGap;
+            panel.add(wireframe);
+        } else y = GuiLayout.row(left, y, columnWidth, opacity) + m.rowGap;
         y = GuiLayout.row(left, y, columnWidth, water, lava);
         int presetsY;
         if (twoColumns) {

@@ -50,7 +50,7 @@ public final class ResponsiveGuiTest implements FabricClientGameTest {
         new Case("esp-group", parent -> new MobEspSettingsScreen(parent, MobEspGroup.OVERWORLD_ENEMIES)));
 
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null) return;
+        if (TestCompat.skip(this)) return;
         // Regression: without a world (e.g. Mod Menu on the title screen) item components are
         // not bound yet; the block lists must open and render without icons instead of crashing.
         for (Case screen : List.of(SCREENS.get(1), SCREENS.get(2))) {

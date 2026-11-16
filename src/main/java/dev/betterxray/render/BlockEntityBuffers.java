@@ -78,7 +78,7 @@ public final class BlockEntityBuffers {
                         RenderSystem.disableBlend();
                     }) {});
             }
-            return new XRayVertexConsumer(original.getBuffer(faint), false);
+            return XRayVertexConsumer.faintModel(original.getBuffer(faint));
         };
     }
 }

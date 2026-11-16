@@ -29,7 +29,7 @@ import java.util.HashSet;
  */
 public final class StructureFinderTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null || System.getProperty("betterxray.test.persistence") != null) return;
+        if (TestCompat.skip(this) || System.getProperty("betterxray.test.persistence") != null) return;
         context.runOnClient(client -> {
             XRayConfigManager.reset();
             if (StructureFinder.available()) throw new AssertionError("Structure Finder available without a world");

@@ -145,7 +145,63 @@ public final class NeoForgeValidation {
         }
     }
 
+    /** {@code -PonlyWireframe}: only the Wireframe steps run, on an otherwise empty fixture. */
+    private static final boolean ONLY_WIREFRAME = "wireframe".equals(System.getProperty("betterxray.validation.only"));
+
+    /**
+     * Wireframe mode (Fabric and NeoForge targets): a stone cube with an air pocket and a preset ore,
+     * X-Ray at 80 %. With the mode on, the view center shows lines in front of the sky instead of a
+     * closed surface.
+     */
+    private void wireframeSteps(Minecraft mc) {
+        if (!XRayState.WIREFRAME_TARGET) return;
+        steps.add(() -> {
+            mc.options.renderDistance().set(8);
+            mc.options.cloudStatus().set(CloudStatus.OFF);
+            mc.options.pauseOnLostFocus = false;
+            XRayConfigManager.reset();
+            // Blocks are set directly: in the -PonlyWireframe run the chunks around the origin are not
+            // loaded yet, and /fill refuses unloaded positions.
+            server(mc, server -> {
+                var level = server.overworld();
+                for (BlockPos pos : BlockPos.betweenClosed(-4, 216, 20, 4, 224, 28)) level.setBlock(pos, Blocks.STONE.defaultBlockState(), 3);
+                for (BlockPos pos : BlockPos.betweenClosed(-2, 218, 22, 2, 222, 26)) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                level.setBlock(new BlockPos(0, 223, 21), Blocks.DIAMOND_ORE.defaultBlockState(), 3);
+                for (BlockPos pos : BlockPos.betweenClosed(-1, 217, 9, 1, 217, 11)) level.setBlock(pos, Blocks.STONE.defaultBlockState(), 3);
+                for (String command : new String[] {"time set noon", "weather clear", "tp @a 0 218 10 0 -3.6"})
+                    server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command);
+            });
+            check(!config().wireframe, "Wireframe defaults to off");
+            config().enabled = true;
+            config().terrainOpacity = .80f;
+            XRayRenderController.apply();
+            wait = 200;
+        });
+        steps.add(() -> shot(mc, "19-wireframe-off-80"));
+        steps.add(() -> {
+            check(metric("19-wireframe-off-80", CENTER_SOLID) > 900, "X-Ray 80 %: closed surface");
+            XRayClient.toggleWireframe(mc);
+            wait = 100;
+        });
+        steps.add(() -> {
+            check(config().wireframe && XRayState.wireframe() && XRayState.terrainOpacity() > .99f, "Wireframe mode active with 100 % lines");
+            shot(mc, "20-wireframe");
+        });
+        steps.add(() -> {
+            int lines = metric("20-wireframe", CENTER_SOLID);
+            check(lines > 10 && lines < 600, "Wireframe: lines instead of faces (" + lines + " per mille)");
+            XRayClient.toggleWireframe(mc);
+            check(!config().wireframe && !XRayState.wireframe(), "Wireframe toggle switches it off");
+            command(mc, "fill -4 216 20 4 224 28 minecraft:air");
+            XRayConfigManager.reset(); XRayConfigManager.save(); XRayRenderController.apply();
+        });
+    }
+
     private void defineSteps(Minecraft mc) {
+        if (ONLY_WIREFRAME) {
+            wireframeSteps(mc);
+            return;
+        }
         steps.add(() -> {
             mc.options.renderDistance().set(8);
             mc.options.cloudStatus().set(CloudStatus.OFF);
@@ -286,6 +342,7 @@ public final class NeoForgeValidation {
         steps.add(() -> { check(Mc.screen(mc) instanceof MobEspScreen, "ESP screen opens"); shot(mc, "12-esp-screen"); });
         steps.add(() -> { Mc.setScreen(mc, null); XRayConfigManager.reset(); XRayConfigManager.save(); XRayRenderController.apply(); });
         featureSteps(mc);
+        wireframeSteps(mc);
     }
 
     /**
@@ -482,8 +539,8 @@ public final class NeoForgeValidation {
 
     private void titleChecks() {
         long keys = XRayClient.keyMappings().size();
-        // Eight original mappings plus ESP tracers and Cave-Find.
-        int expected = 10;
+        // Eight original mappings plus ESP tracers, Cave-Find and Wireframe.
+        int expected = 11;
         check(keys == expected, expected + " key mappings registered (" + keys + ")");
         check(key("key.betterxray.toggle").saveString().equals("key.keyboard.x"), "X default");
         check(key("key.betterxray.config").saveString().equals("key.keyboard.g"), "G default");

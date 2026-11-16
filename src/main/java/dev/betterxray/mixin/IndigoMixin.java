@@ -53,7 +53,7 @@ public abstract class IndigoMixin {
             cir.setReturnValue(false);
         } else {
             quad.chunkLayer(ChunkSectionLayer.TRANSLUCENT);
-            for (int i = 0; i < 4; i++) quad.color(i, XRayState.alpha(quad.color(i)));
+            for (int i = 0; i < 4; i++) quad.color(i, XRayState.terrainAlpha(quad.color(i)));
         }
     }
 }
@@ -98,7 +98,7 @@ public abstract class IndigoMixin {
             ci.cancel();
         } else {
             quad.renderLayer(ChunkSectionLayer.TRANSLUCENT);
-            for (int i = 0; i < 4; i++) quad.color(i, XRayState.alpha(quad.color(i)));
+            for (int i = 0; i < 4; i++) quad.color(i, XRayState.terrainAlpha(quad.color(i)));
         }
     }
 }

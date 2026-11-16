@@ -37,11 +37,15 @@ final class FeatureChecks {
     private FeatureChecks() {}
 
     private static int step;
+    /** {@code -PonlyWireframe}: build the cube (step 0), then run only the Wireframe steps. */
+    static final boolean ONLY_WIREFRAME = "wireframe".equals(System.getProperty("betterxray.validation.only"));
     private static double ringBefore;
 
     /** Runs the next step; true once every step has run. */
     static boolean step(Minecraft mc) {
         var c = XRayConfigManager.get();
+        if (ONLY_WIREFRAME && step == 1) step = 5;
+        if (ONLY_WIREFRAME && step == 7) return true;
         switch (step++) {
             case 0 -> {
                 // A stone cube with an enclosed air pocket and a diamond ore in its roof (as CaveFindTest).
@@ -77,6 +81,22 @@ final class FeatureChecks {
                 check(!c.caveFind && !XRayState.enabled(), "Cave-Find toggle switches it off");
             }
             case 5 -> {
+                // Wireframe mode on the same cube: X-Ray at 80 % would be a closed surface, the mode leaves lines.
+                check(!c.wireframe, "Wireframe defaults to off");
+                c.enabled = true;
+                c.terrainOpacity = .80f;
+                XRayClient.toggleWireframe(mc);
+            }
+            case 6 -> {
+                check(c.wireframe && XRayState.wireframe() && XRayState.terrainOpacity() > .99f, "Wireframe mode active with 100 % lines");
+                shot(mc, "33b-wireframe");
+                double lines = nonSky(mc, true);
+                check(lines > .01 && lines < .6, "Wireframe: lines instead of faces (" + lines + ")");
+                c.enabled = false;
+                XRayClient.toggleWireframe(mc);
+                check(!c.wireframe && !XRayState.wireframe() && !XRayState.enabled(), "Wireframe and X-Ray off again");
+            }
+            case 7 -> {
                 ringBefore = nonSky(mc, false);
                 check(ringBefore > .9, "Terrain restored after Cave-Find (" + ringBefore + ")");
                 // Ore fixture: a second diamond ore next to the first forms a two-block vein.
@@ -90,7 +110,7 @@ final class FeatureChecks {
                 c.groupVeins = true;
                 XRayConfigManager.save();
             }
-            case 6 -> {
+            case 8 -> {
                 check(HighlightCache.veins().stream().anyMatch(vein -> vein.count() == 2 && vein.block() == Blocks.DIAMOND_ORE),
                     "Two adjacent diamond ores form one vein");
                 check(HighlightCache.lastDrawnBoxes() == 2 && HighlightCache.lastDrawnTracers() == 2,
@@ -102,7 +122,7 @@ final class FeatureChecks {
                 c.groupVeins = false;
                 XRayConfigManager.save();
             }
-            case 7 -> {
+            case 9 -> {
                 check(HighlightCache.lastDrawnBoxes() == 3, "Group Veins off: one box per block, got " + HighlightCache.lastDrawnBoxes());
                 check(DebugHud.lines().stream().anyMatch(line -> line.startsWith("Highlight: range "))
                     && DebugHud.lines().stream().anyMatch(line -> line.startsWith("X-Ray: ")), "Debug HUD lines: " + DebugHud.lines());
@@ -112,7 +132,7 @@ final class FeatureChecks {
                 c.highlightBlockColors.put("minecraft:ancient_debris", 0xffffff00);
                 XRayConfigManager.save();
             }
-            case 8 -> {
+            case 10 -> {
                 check(HighlightCache.color(Blocks.ANCIENT_DEBRIS) == 0xffffff00 && HighlightCache.color(Blocks.DIAMOND_ORE) == (c.highlightColor | 0xff000000),
                     "Own block color and global color");
                 int yellow = pixels(mc, 0xffff00), magenta = pixels(mc, 0xff00ff);
@@ -123,7 +143,7 @@ final class FeatureChecks {
                 c.highlightBlocks.add("#minecraft:diamond_ores");
                 XRayConfigManager.save();
             }
-            case 9 -> {
+            case 11 -> {
                 check(HighlightCache.isIndexed(new BlockPos(-6, 203, 5)) && HighlightCache.isIndexed(new BlockPos(0, 203, 5))
                     && !HighlightCache.isIndexed(new BlockPos(6, 203, 5)), "Tag #minecraft:diamond_ores covers both diamond ores only");
                 mc.player.connection.sendCommand("betterxray highlight add minecraft:ancient_debris");
@@ -149,7 +169,7 @@ final class FeatureChecks {
                 c.itemEsp.put("minecraft:diamond", diamond);
                 XRayConfigManager.save();
             }
-            case 10 -> {
+            case 12 -> {
                 check(MobEspRenderer.lastDrawnTracers() == 1, "One ESP tracer (cow), got " + MobEspRenderer.lastDrawnTracers());
                 check(MobEspRenderer.settings(item(mc, "minecraft:diamond")) != null, "Diamond item has ESP");
                 check(MobEspRenderer.settings(item(mc, "minecraft:emerald")) == null, "Emerald item has no ESP");
@@ -157,7 +177,7 @@ final class FeatureChecks {
                 c.mobEspTracersEnabled = false;
                 XRayConfigManager.save();
             }
-            case 11 -> {
+            case 13 -> {
                 check(MobEspRenderer.lastDrawnTracers() == 0, "ESP tracer master switch off");
                 c.mobEspEnabled = false;
                 commands(mc, "kill @e[type=!minecraft:player]");
@@ -168,14 +188,14 @@ final class FeatureChecks {
                 c.structures.add("minecraft:igloo");
                 XRayConfigManager.save();
             }
-            case 12 -> {
+            case 14 -> {
                 var found = StructureFinder.found();
                 check(found.size() == 1 && found.get(0).group().key().equals("minecraft:igloos"), "Structure Finder finds the igloo, got " + found.size());
                 check(StructureFinder.groups().size() > 10, "Structure picker lists the structure sets");
                 checkDebug("structure finder");
                 mc.setScreen(new StructureScreen(null));
             }
-            case 13 -> {
+            case 15 -> {
                 check(mc.screen instanceof StructureScreen, "Structure Finder screen opens");
                 shot(mc, "37-structures");
                 checkDebug("end of the feature checks");

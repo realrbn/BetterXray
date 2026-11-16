@@ -103,6 +103,7 @@ public final class XRayClient {
     private static KeyMapping espTracersKey;
     /** Toggles Cave-Find. */
     private static KeyMapping caveFindKey;
+    private static KeyMapping wireframeKey;
     private static boolean keyMappingsNeedSave;
     private static final java.util.List<KeyMapping> KEY_MAPPINGS = new java.util.ArrayList<>();
 
@@ -237,6 +238,7 @@ public final class XRayClient {
         espKey = registerKey("key.betterxray.esp", InputConstants.KEY_J, category);
         espTracersKey = registerKey("key.betterxray.esp_tracers", InputConstants.KEY_K, category);
         caveFindKey = registerKey("key.betterxray.cave_find", InputConstants.KEY_U, category);
+        if (XRayState.WIREFRAME_TARGET) wireframeKey = registerKey("key.betterxray.wireframe", InputConstants.UNKNOWN.getValue(), category);
         //? if fabric && <1.21.11 {
         /*WorldRenderEvents.LAST.register(XRayClient::renderOverlays);
         dev.betterxray.render.BlockEntityBuffers.registerShader();
@@ -282,6 +284,7 @@ public final class XRayClient {
         while (espKey.consumeClick()) toggleEsp(client);
         while (espTracersKey.consumeClick()) toggleEspTracers(client);
         while (caveFindKey.consumeClick()) toggleCaveFind(client);
+        while (wireframeKey != null && wireframeKey.consumeClick()) toggleWireframe(client);
         HighlightCache.tick(client);
         StructureFinder.tick(client);
         XRayRenderController.tick(client);
@@ -385,6 +388,25 @@ public final class XRayClient {
         if (client.player != null) Mc.overlay(client, XRayState.supported()
             ? Component.translatable("message.betterxray.cave_find", Component.translatable(config.caveFind ? "options.on" : "options.off"))
             : Component.literal("X-Ray unavailable with this renderer / shader pack"));
+    }
+
+    /**
+     * Wireframe mode on/off; rebuilds the meshes while the X-Ray view is on (the line opacity is
+     * meshed into the terrain). The switch is kept while X-Ray and Cave-Find are off.
+     */
+    public static void toggleWireframe(Minecraft client) {
+        RendererCompatibility.refresh();
+        var config = XRayConfigManager.get();
+        config.wireframe = !config.wireframe;
+        XRayRenderController.apply();
+        if (client.player != null) Mc.overlay(client, wireframeMessage(config.wireframe));
+    }
+
+    /** Feedback for switching the Wireframe mode, with the reason when it cannot be drawn right now. */
+    public static Component wireframeMessage(boolean on) {
+        if (on && XRayState.wireframeUnavailable()) return Component.translatable("message.betterxray.wireframe_device");
+        if (on && XRayState.faintUnsupported()) return Component.translatable("message.betterxray.wireframe_shader");
+        return Component.translatable("message.betterxray.wireframe", Component.translatable(on ? "options.on" : "options.off"));
     }
 
     /** Master switch for the ESP tracers; which groups and mobs get one is kept. */

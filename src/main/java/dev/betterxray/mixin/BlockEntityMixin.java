@@ -22,7 +22,7 @@ public abstract class BlockEntityMixin {
                                     MultiBufferSource buffers, int light, int overlay) {
         if (XRayState.enabled()) {
             if (XRayState.selected(block.getBlockState())) light = Mc.FULL_BRIGHT;
-            else if (XRayState.hideTerrain()) return;
+            else if (XRayState.hideFaintModels()) return;
             else buffers = BlockEntityBuffers.faint(buffers);
         }
         renderer.render(block, delta, pose, buffers, light, overlay);

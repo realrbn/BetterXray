@@ -26,7 +26,7 @@ import dev.betterxray.debug.DebugMode;
 /** Real rendering integration fixture; this test mod is excluded from the release jar. */
 public final class XRayRenderTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
-        if (TestCompat.shaderPack() != null) return;
+        if (TestCompat.skip(this)) return;
         String persistence = System.getProperty("betterxray.test.persistence");
         if (persistence != null) {
             context.runOnClient(client -> {

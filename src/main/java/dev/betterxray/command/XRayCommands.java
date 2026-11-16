@@ -91,6 +91,18 @@ public final class XRayCommands {
                 config().caveFind = value;
                 XRayRenderController.apply();
             }));
+            if (XRayState.WIREFRAME_TARGET) {
+                var wireframe = literal("wireframe").executes(c -> setWireframe(!config().wireframe))
+                    .then(literal("on").executes(c -> setWireframe(true)))
+                    .then(literal("off").executes(c -> setWireframe(false)))
+                    .then(literal("opacity").then(argument("percent", IntegerArgumentType.integer(10, 100)).executes(c -> {
+                        config().wireframeOpacity = IntegerArgumentType.getInteger(c, "percent") / 100f;
+                        XRayRenderController.apply();
+                        send(Component.translatable("option.betterxray.wireframe_opacity", Math.round(config().wireframeOpacity * 100)));
+                        return 1;
+                    })));
+                root.then(wireframe);
+            }
             // Without an argument it cycles like the button: off -> walls -> all.
             var hideMobs = literal("hidemobs").executes(c -> setHideMobs(config().hideMobs.next()));
             for (var mode : XRayConfig.HideMobs.values())
@@ -501,6 +513,14 @@ public final class XRayCommands {
 
     private static String millis(long nanos) { return String.format(Locale.ROOT, "%.2f", nanos / 1_000_000.0); }
 
+    private static int setWireframe(boolean value) {
+        RendererCompatibility.refresh();
+        config().wireframe = value;
+        XRayRenderController.apply();
+        send(dev.betterxray.XRayClient.wireframeMessage(value));
+        return 1;
+    }
+
     // ---- overview ----
 
     private static int status() {
@@ -511,6 +531,8 @@ public final class XRayCommands {
             Math.round(config.terrainOpacity * 100), onOff(config.showWater), onOff(config.showLava)));
         send(Component.translatable("command.betterxray.status.other", onOff(config.fullbright),
             onOff(config.caveFind), Component.translatable(config.hideMobs.key())));
+        if (XRayState.WIREFRAME_TARGET) send(Component.translatable("command.betterxray.status.wireframe",
+            onOff(config.wireframe), Math.round(config.wireframeOpacity * 100)));
         send(Component.translatable("command.betterxray.status.highlight", onOff(config.highlightEnabled),
             config.highlightBlocks.size(), onOff(config.tracersEnabled),
             config.highlightRangeBlocks == 0 ? Component.translatable("command.betterxray.render_distance") : blocks(config.highlightRangeBlocks)));
@@ -528,6 +550,7 @@ public final class XRayCommands {
         helpLine(c + " list | clear", "command.betterxray.help.list");
         helpLine(c + " preset [1-3 | rename <name> | reset]", "command.betterxray.help.preset");
         helpLine(c + " opacity <0-80>", "command.betterxray.help.opacity");
+        if (XRayState.WIREFRAME_TARGET) helpLine(c + " wireframe [on | off | opacity <10-100>]", "command.betterxray.help.wireframe");
         helpLine(c + " water | lava | fullbright" + " | cavefind" + " [on|off]", "command.betterxray.help.switches");
         helpLine(c + " hidemobs [off|walls|all]", "command.betterxray.help.hide_mobs");
         helpLine(c + " highlight [on|off | add | remove | list | clear | tracers | range]", "command.betterxray.help.highlight");

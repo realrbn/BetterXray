@@ -10,17 +10,27 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/^* Faint translucent terrain must not hide farther geometry: no depth writes while X-Ray is on. ^/
+/^*
+ * Faint translucent terrain must not hide farther geometry: no depth writes while X-Ray is on.
+ * Wireframe mode: the layer, which then holds all unselected terrain, is drawn as lines.
+ ^/
 @Mixin(RenderStateShard.class)
 public abstract class TranslucentDepthMixin {
     @Inject(method = "setupRenderState", at = @At("RETURN"))
     private void xray$noDepthWrite(CallbackInfo ci) {
-        if (XRayState.enabled() && (Object)this == RenderType.translucent()) RenderSystem.depthMask(false);
+        if (XRayState.enabled() && (Object)this == RenderType.translucent()) {
+            RenderSystem.depthMask(false);
+            // GL_FRONT_AND_BACK, GL_LINE (restored to GL_FILL below).
+            if (XRayState.wireframe()) RenderSystem.polygonMode(1032, 6913);
+        }
     }
 
     @Inject(method = "clearRenderState", at = @At("RETURN"))
     private void xray$restore(CallbackInfo ci) {
-        if ((Object)this == RenderType.translucent()) RenderSystem.depthMask(true);
+        if ((Object)this == RenderType.translucent()) {
+            RenderSystem.depthMask(true);
+            if (XRayState.WIREFRAME_TARGET) RenderSystem.polygonMode(1032, 6914);
+        }
     }
 }
 *///?}

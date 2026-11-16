@@ -106,6 +106,8 @@ neoForge {
             client()
             gameDirectory = project.file("run-validation")
             systemProperty("betterxray.updateCheck.url", "off")
+            // -PonlyWireframe: only the Wireframe steps (NeoForgeValidation.ONLY_WIREFRAME).
+            if (project.hasProperty("onlyWireframe")) systemProperty("betterxray.validation.only", "wireframe")
         }
     }
 

@@ -18,6 +18,7 @@ on multiplayer servers (the Structure Finder is singleplayer-only, see below).
   blocks of other mods.
 - **Cave-Find** – caves, ravines and hidden rooms show up as solid, lit hollow shapes through the
   terrain.
+- **Wireframe** – draw the remaining terrain as a wireframe instead of faint faces.
 - **Hide Mobs** – hide mobs while X-Ray is on: off, only behind walls, or all.
 - **Block highlighting** – boxes and optional tracers around selected blocks, adjacent ores merged
   into veins, a global color or one color per block, and an adjustable range.
@@ -73,6 +74,7 @@ jar installed still starts, but the mod does nothing there.
 | H       |Toggle Highlight                    |
 | U       |Toggle Cave-Find                    |
 | Unbound |Toggle Highlight-Tracers            |
+| Unbound |Toggle Wireframe                    |
 | Unbound |Add Looked-at-Block to X-ray Preset |
 | Unbound |Cycle X-ray Preset                  |
 
@@ -98,6 +100,15 @@ so caves show up as hollow shapes; all other terrain follows the X-Ray opacity (
 see only the caves). Cave-Find on its own shows only caves; turn X-Ray on as well to see your preset
 blocks too. Water- or lava-filled caves are not marked; in the Nether and the End every air pocket
 counts as a cave.
+
+### Wireframe
+
+While X-Ray or Cave-Find is on, the **Wireframe** button draws all terrain that is not in your
+preset as lines (the edges and diagonal of every block face, in the block's own color) instead of
+faint faces. Preset blocks and Cave-Find walls stay solid. The opacity slider then sets the **Line
+Opacity** (10–100 %); the terrain opacity is kept for when the mode is off. Other blocks with their
+own renderer (chests, signs, ...), water and lava are drawn as without the mode. Not available on
+graphics devices without a line polygon mode or under shader packs that cannot show faint terrain.
 
 ### Hide Mobs
 
@@ -173,6 +184,10 @@ as far as the client knows about them (the server's entity tracking range).
 | `/betterxray cavefind` | Toggle Cave-Find |
 | `/betterxray cavefind on` | Turn Cave-Find on |
 | `/betterxray cavefind off` | Turn Cave-Find off |
+| `/betterxray wireframe` | Toggle Wireframe |
+| `/betterxray wireframe on` | Turn Wireframe on |
+| `/betterxray wireframe off` | Turn Wireframe off |
+| `/betterxray wireframe opacity <10-100>` | Set the opacity of the Wireframe lines |
 | `/betterxray hidemobs` | Cycle Hide Mobs: Off → Behind Walls → All |
 | `/betterxray hidemobs off` | Show all mobs |
 | `/betterxray hidemobs walls` | Hide mobs behind walls |

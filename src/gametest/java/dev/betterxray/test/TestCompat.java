@@ -17,6 +17,15 @@ final class TestCompat {
     static String shaderPack() { return System.getProperty("betterxray.test.shaderPack"); }
 
     /**
+     * True when {@code test} does not run in this invocation: in the shader baseline mode, or when
+     * {@code -PonlyTest=<class name>} selects another test.
+     */
+    static boolean skip(Object test) {
+        String only = System.getProperty("betterxray.test.only");
+        return shaderPack() != null || (only != null && !only.equals(test.getClass().getSimpleName()));
+    }
+
+    /**
      * World builder for the fixtures. 1.21.11 searches a spawn point candidate by candidate
      * (one chunk load each, up to 441 in lock-step with the client); radius 0 keeps world
      * creation within the gametest timeout on slow software-rendered machines.
