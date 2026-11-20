@@ -87,7 +87,17 @@ public final class MobEspScreen extends Screen {
         var range = RangeSlider.esp();
         range.setTooltip(Tooltip.create(Component.translatable("tooltip.betterxray.esp_range")));
         int rangeY = footerY - GuiLayout.BUTTON_HEIGHT - metrics.rowGap;
-        GuiLayout.row((width - footerWidth) / 2, rangeY, footerWidth, range);
+        if (MobEspRenderer.FAR_TRACKING_TARGET) {
+            var far = Button.builder(farLabel(), b -> {
+                var config = XRayConfigManager.get();
+                config.mobEspFullViewDistance = !config.mobEspFullViewDistance;
+                XRayConfigManager.save();
+                b.setMessage(farLabel());
+            }).build();
+            far.setTooltip(Tooltip.create(Component.translatable("tooltip.betterxray.esp_full_view_distance")));
+            GuiLayout.row((width - footerWidth) / 2, rangeY, footerWidth, range, far);
+            addRenderableWidget(far);
+        } else GuiLayout.row((width - footerWidth) / 2, rangeY, footerWidth, range);
         if (list != null) scroll = GuiLayout.scrollAmount(list);
         list = addRenderableWidget(new MobList(minecraft, contentWidth,
             Math.max(0, rangeY - ListScreens.listGap(metrics) - y), y, ListScreens.rowHeight(metrics)));
@@ -150,6 +160,10 @@ public final class MobEspScreen extends Screen {
     private static Component tracersLabel() {
         return Component.translatable("button.betterxray.esp_tracers_master",
             Component.translatable(XRayConfigManager.get().mobEspTracersEnabled ? "options.on" : "options.off"));
+    }
+    private static Component farLabel() {
+        return Component.translatable("button.betterxray.esp_full_view_distance",
+            Component.translatable(XRayConfigManager.get().mobEspFullViewDistance ? "options.on" : "options.off"));
     }
     private static Component masterLabel() {
         return Component.translatable("button.betterxray.esp_master",

@@ -133,6 +133,11 @@ public final class XRayCommands {
                     config().mobEspTracersEnabled = value;
                     XRayConfigManager.save();
                 }));
+            if (MobEspRenderer.FAR_TRACKING_TARGET) esp.then(toggle("fullview", "message.betterxray.esp_full_view_distance",
+                () -> config().mobEspFullViewDistance, value -> {
+                    config().mobEspFullViewDistance = value;
+                    XRayConfigManager.save();
+                }));
             esp.then(literal("range").executes(c -> showEspRange())
                 .then(literal("unlimited").executes(c -> setEspRange(0)))
                 .then(argument("blocks", IntegerArgumentType.integer(XRayConfig.RANGE_STEP_BLOCKS, XRayConfig.MAX_RANGE_BLOCKS))
@@ -554,7 +559,8 @@ public final class XRayCommands {
         helpLine(c + " water | lava | fullbright" + " | cavefind" + " [on|off]", "command.betterxray.help.switches");
         helpLine(c + " hidemobs [off|walls|all]", "command.betterxray.help.hide_mobs");
         helpLine(c + " highlight [on|off | add | remove | list | clear | tracers | range]", "command.betterxray.help.highlight");
-        helpLine(c + " esp [on|off" + " | tracers" + " | range]", "command.betterxray.help.esp");
+        helpLine(c + " esp [on|off" + " | tracers" + (MobEspRenderer.FAR_TRACKING_TARGET ? " | fullview" : "") + " | range]",
+            "command.betterxray.help.esp");
         helpLine(c + " tags [search] | tag <#tag>", "command.betterxray.help.tags");
         helpLine(c + " status", "command.betterxray.help.status");
         return 1;

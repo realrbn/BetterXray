@@ -80,21 +80,39 @@ public final class MobEspRenderer {
 
     public static String id(EntityType<?> type) { return info(type).id(); }
 
+    /** Render thread only, before 1.21.11: the entity just tested by the vanilla render loop has ESP. */
+    public static boolean legacyEspCandidate;
+
+    /**
+     * "Full view distance" exists on this target: the integrated server tracks ESP targets up to the
+     * view distance instead of their entity tracking range (Fabric 26.3, {@code FarEspTrackingMixin}).
+     */
+    //? if fabric && >=26.3 {
+    public static final boolean FAR_TRACKING_TARGET = true;
+    //?} else
+    /*public static final boolean FAR_TRACKING_TARGET = false;*/
+
     /**
      * Effective settings of this entity (its own overrides on top of its group), or null when off.
      * Mobs, other players and objects qualify; the local player, spectators, the camera entity,
      * the vehicle the camera rides and anything outside the configured ESP range never do.
      */
-    /** Render thread only, before 1.21.11: the entity just tested by the vanilla render loop has ESP. */
-    public static boolean legacyEspCandidate;
-
     public static XRayConfig.ResolvedEsp settings(Entity entity) {
+        if (entity instanceof LocalPlayer) return null;
+        return settings(entity, Minecraft.getInstance().getCameraEntity());
+    }
+
+    /**
+     * ESP of {@code entity} as seen from {@code camera} (range check against its eyes). Also called
+     * on the integrated server thread with server entities ({@code FarEspTrackingMixin}); it only
+     * reads the config and the thread-safe type caches.
+     */
+    public static XRayConfig.ResolvedEsp settings(Entity entity, Entity camera) {
         var config = XRayConfigManager.get();
         if (!config.mobEspEnabled || entity.isRemoved()) return null;
-        if (entity instanceof Player player && (player instanceof LocalPlayer || player.isSpectator())) return null;
+        if (entity instanceof Player player && player.isSpectator()) return null;
         TypeInfo info = info(entity.getType());
         if (info.id().equals("minecraft:marker")) return null;
-        Entity camera = Minecraft.getInstance().getCameraEntity();
         if (camera != null) {
             if (camera == entity || entity.hasIndirectPassenger(camera)) return null;
             if (config.mobEspRangeBlocks > 0

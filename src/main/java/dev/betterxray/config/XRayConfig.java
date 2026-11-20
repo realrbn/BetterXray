@@ -90,6 +90,11 @@ public final class XRayConfig {
     public HealthDisplay playerEspHealth = HealthDisplay.BAR;
     /** ESP range in blocks around the camera for all groups and mobs; zero means unlimited. */
     public int mobEspRangeBlocks = 0;
+    /**
+     * Singleplayer: ESP targets are sent to the client up to the view distance instead of their
+     * entity tracking range (monsters 128 blocks), so they stay rendered as far as terrain is.
+     */
+    public boolean mobEspFullViewDistance = false;
     /** ESP defaults per {@link MobEspGroup}, keyed by {@link MobEspGroup#id}. */
     public Map<String, MobEspGroupSettings> mobEspGroups = createDefaultEspGroups();
     public int activePreset = 0;

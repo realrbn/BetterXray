@@ -26,6 +26,8 @@ on multiplayer servers (the Structure Finder is singleplayer-only, see below).
   modded structures and more in the loaded chunks.
 - **Mob / Player / Item ESP** – outlines or boxes through walls, grouped by mob type, with per-group
   and per-mob style, color and tracers; player name and health labels; ESP for single items.
+  Optional *Full View Distance* (Fabric 26.3, singleplayer, default off): ESP targets stay rendered up to the
+  render distance instead of vanishing at the vanilla entity tracking range.
 - **Fullbright** – works independently of X-Ray.
 - **Chat commands** – change every setting without opening the GUI.
 - Native Minecraft GUI that adapts to every GUI scale and window size; English and German.
