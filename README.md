@@ -13,7 +13,8 @@ on multiplayer servers (the Structure Finder is singleplayer-only, see below).
 - **X-Ray** – unselected terrain is rendered at an adjustable opacity (0–80 %, default 15 %);
   selected blocks stay fully visible and lit, even when completely enclosed. Water and lava can be
   hidden separately.
-- **Three presets** – independently named block lists with search by name or registry ID.
+- **Three presets** – independently named block lists with search by name or registry ID. On Fabric 26.3
+  a preset can be exported to and imported from the clipboard (Export/Import buttons) to share it.
 - **Block tags** – presets and the highlight list accept tags such as `#c:ores`, which also cover
   blocks of other mods.
 - **Cave-Find** – caves, ravines and hidden rooms show up as solid, lit hollow shapes through the

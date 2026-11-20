@@ -7,6 +7,7 @@
     "fabric-client-gametest": [
       "dev.betterxray.test.MobEspTest",
       "dev.betterxray.test.FarEspTest",
+      "dev.betterxray.test.PresetTransferTest",
       "dev.betterxray.test.ResponsiveGuiTest",
       "dev.betterxray.test.XRayRenderTest",
       "dev.betterxray.test.CaveFindTest",

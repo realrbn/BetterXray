@@ -275,6 +275,17 @@ public final class XRayConfigScreen extends Screen {
         int py = GuiLayout.row(right, presetsY + font.lineHeight + m.labelGap, columnWidth, presetButtons) + m.rowGap;
         py = GuiLayout.row(right, py, columnWidth, blocks) + m.rowGap;
         py = GuiLayout.row(right, py, columnWidth, rename, reset);
+        // Clipboard export/import of the active preset.
+        //? if fabric && >=26.3 {
+        var exportPreset = Button.builder(Component.translatable("button.betterxray.export_preset"),
+            b -> PresetClipboard.exportPreset(minecraft, c.activePreset))
+            .tooltip(Tooltip.create(Component.translatable("tooltip.betterxray.export_preset"))).build();
+        var importPreset = Button.builder(Component.translatable("button.betterxray.import_preset"),
+            b -> PresetClipboard.importPreset(minecraft, this, c.activePreset))
+            .tooltip(Tooltip.create(Component.translatable("tooltip.betterxray.import_preset"))).build();
+        py = GuiLayout.row(right, py + m.rowGap, columnWidth, exportPreset, importPreset);
+        panel.add(exportPreset); panel.add(importPreset);
+        //?}
         if (shaderPatch != null) {
             py = GuiLayout.row(right, py + m.rowGap, columnWidth, shaderPatch);
             panel.add(shaderPatch);
