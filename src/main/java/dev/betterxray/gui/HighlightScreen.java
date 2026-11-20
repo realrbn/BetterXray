@@ -166,6 +166,22 @@ public final class HighlightScreen extends Screen {
         reset.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("tooltip.betterxray.highlight_reset_colors")));
         reset.active = !config.highlightBlockColors.isEmpty();
         extras.add(reset);
+        //? if fabric && >=26.3 {
+        // Copies every block and tag of the active X-Ray preset into the highlight list.
+        var fromPreset = Button.builder(importPresetLabel(), b -> {
+            int added = importActivePreset();
+            if (added > 0) {
+                XRayConfigManager.save();
+                refresh();
+            }
+            b.setMessage(importPresetLabel());
+            b.active = missingPresetEntries() > 0;
+        }).build();
+        fromPreset.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+            Component.translatable("tooltip.betterxray.highlight_from_preset", config.getActivePreset().name)));
+        fromPreset.active = missingPresetEntries() > 0;
+        extras.add(fromPreset);
+        //?}
 
         // More than two toggles share one row only while every label fits; otherwise the extra ones get their own row.
         int toggleCell = (width - (toggles.size() - 1) * GuiLayout.CELL_GAP) / toggles.size();
@@ -194,6 +210,25 @@ public final class HighlightScreen extends Screen {
     private static Component resetColorsLabel() {
         return Component.translatable("button.betterxray.highlight_reset_colors", XRayConfigManager.get().highlightBlockColors.size());
     }
+    //? if fabric && >=26.3 {
+    /** Entries (blocks and tags) of the active preset that are not highlighted yet. */
+    private static int missingPresetEntries() {
+        var config = XRayConfigManager.get();
+        int missing = 0;
+        for (String entry : config.getActiveVisibleBlocks()) if (!config.highlightBlocks.contains(entry)) missing++;
+        return missing;
+    }
+    /** Adds the active preset's entries to the highlight list; returns how many were new. */
+    private static int importActivePreset() {
+        var config = XRayConfigManager.get();
+        int before = config.highlightBlocks.size();
+        config.highlightBlocks.addAll(config.getActiveVisibleBlocks());
+        return config.highlightBlocks.size() - before;
+    }
+    private static Component importPresetLabel() {
+        return Component.translatable("button.betterxray.highlight_from_preset", missingPresetEntries());
+    }
+    //?}
     private void openColor(String id, Component name) {
         scroll = GuiLayout.scrollAmount(list);
         Mc.setScreen(minecraft, new HighlightColorScreen(this, id, name));

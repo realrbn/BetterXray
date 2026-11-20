@@ -194,6 +194,8 @@
   "tooltip.betterxray.highlight_use_global": "Removes this block's own color; it follows the global color again.",
   "button.betterxray.highlight_reset_colors": "Reset Block Colors (%s)",
   "tooltip.betterxray.highlight_reset_colors": "Every block uses the global color again. To give one block its own color, click the color square at the end of its row (or press Right).",
+  "button.betterxray.highlight_from_preset": "Add From Preset (%s)",
+  "tooltip.betterxray.highlight_from_preset": "Adds every block and tag of the active X-Ray preset \"%s\" to the highlight list. Blocks already highlighted stay as they are.",
   "label.betterxray.highlight_own_color": "Own color",
   "label.betterxray.highlight_global_color": "Global color",
   "screen.betterxray.structures": "Structure Finder",
