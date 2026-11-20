@@ -127,6 +127,7 @@ public final class NeoForgeValidation {
                 worldRequested = true;
                 defineSteps(mc);
                 titleChecks();
+                passed.addAll(TransferChecks.presets(mc));
                 createWorld(mc, "betterxray-validation-" + System.currentTimeMillis());
                 wait = 200;
                 return;
@@ -342,7 +343,83 @@ public final class NeoForgeValidation {
         steps.add(() -> { check(Mc.screen(mc) instanceof MobEspScreen, "ESP screen opens"); shot(mc, "12-esp-screen"); });
         steps.add(() -> { Mc.setScreen(mc, null); XRayConfigManager.reset(); XRayConfigManager.save(); XRayRenderController.apply(); });
         featureSteps(mc);
+        farEspSteps(mc);
         wireframeSteps(mc);
+    }
+
+    private static final int FAR_DISTANCE = 160;
+    private int farWait;
+
+    /**
+     * ESP "Full View Distance" (1.7.0): a zombie 160 blocks east is beyond its 128-block tracking
+     * range but inside render distance 12, so it only reaches the client with the option on.
+     * The integrated server re-checks the tracking range every second, without anyone moving.
+     */
+    private void farEspSteps(Minecraft mc) {
+        steps.add(() -> {
+            mc.options.renderDistance().set(12);
+            for (String command : new String[] {"forceload add " + FAR_DISTANCE + " 0", "tp @a 0 201 -10 -90 0",
+                    "summon minecraft:zombie " + FAR_DISTANCE + ".5 230 0.5 {NoAI:1b,NoGravity:1b,PersistenceRequired:1b,Invulnerable:1b,Silent:1b}"})
+                command(mc, command);
+            var c = config();
+            c.mobEspEnabled = true;
+            var enemies = c.espGroup(MobEspGroup.OVERWORLD_ENEMIES);
+            enemies.enabled = true;
+            enemies.style = XRayConfig.EspStyle.BOX;
+            enemies.color = ESP_COLOR;
+            XRayConfigManager.save();
+            farWait = 0;
+            wait = 200;
+        });
+        steps.add(() -> {
+            // Render distance 12 loads gradually: wait until the far chunk reached the client.
+            if (!mc.level.hasChunk(FAR_DISTANCE >> 4, 0) && ++farWait < 40) { step--; return; }
+            check(farZombies(mc).isEmpty(), "Far zombie not sent with Full View Distance off");
+            check(!config().mobEspFullViewDistance, "Full View Distance defaults to off");
+            config().mobEspFullViewDistance = true;
+            XRayConfigManager.save();
+            wait = 80;
+        });
+        steps.add(() -> {
+            var zombies = farZombies(mc);
+            check(zombies.size() == 1 && MobEspRenderer.settings(zombies.get(0)) != null, "Full View Distance sends the far zombie with ESP (" + zombies.size() + ")");
+            shot(mc, "21-far-esp");
+        });
+        steps.add(() -> {
+            //? if >=1.21.11 {
+            check(MobEspRenderer.lastRenderedTargets().stream().anyMatch(t -> t.x() > FAR_DISTANCE - 2), "Far zombie rendered with ESP");
+            //?} else
+            /*check(MobEspRenderer.lastDrawnBoxes() >= 1, "Far zombie gets its ESP box (" + MobEspRenderer.lastDrawnBoxes() + ")");*/
+            config().espGroup(MobEspGroup.OVERWORLD_ENEMIES).enabled = false;
+            XRayConfigManager.save();
+            wait = 80;
+        });
+        steps.add(() -> {
+            check(farZombies(mc).isEmpty(), "Far zombie removed after its ESP was switched off");
+            config().espGroup(MobEspGroup.OVERWORLD_ENEMIES).enabled = true;
+            XRayConfigManager.save();
+            wait = 80;
+        });
+        steps.add(() -> {
+            check(farZombies(mc).size() == 1, "Far zombie sent again after ESP was switched on");
+            config().mobEspFullViewDistance = false;
+            XRayConfigManager.save();
+            wait = 80;
+        });
+        steps.add(() -> {
+            check(farZombies(mc).isEmpty(), "Far zombie removed after Full View Distance was switched off");
+            for (String command : new String[] {"kill @e[type=minecraft:zombie]", "forceload remove " + FAR_DISTANCE + " 0", "tp @a 0 201 -10 0 0"})
+                command(mc, command);
+            mc.options.renderDistance().set(8);
+            XRayConfigManager.reset(); XRayConfigManager.save(); XRayRenderController.apply();
+        });
+    }
+
+    private static List<net.minecraft.world.entity.Entity> farZombies(Minecraft mc) {
+        List<net.minecraft.world.entity.Entity> result = new ArrayList<>();
+        for (var entity : mc.level.entitiesForRendering())
+            if (entity.getType() == ZOMBIE && entity.getX() > FAR_DISTANCE - 8) result.add(entity);
+        return result;
     }
 
     /**

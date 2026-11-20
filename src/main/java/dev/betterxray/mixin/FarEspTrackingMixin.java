@@ -1,6 +1,5 @@
 package dev.betterxray.mixin;
 
-//? if fabric && >=26.3 {
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.betterxray.render.FarEspTracking;
@@ -33,4 +32,3 @@ public abstract class FarEspTrackingMixin implements FarEspTracking.Tracked {
         updatePlayer(player);
     }
 }
-//?}

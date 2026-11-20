@@ -15,9 +15,8 @@ import net.minecraft.network.chat.Component;
  */
 public final class BlockSelectionScreen extends Screen {
     static final int LIST_MAX_WIDTH = 480;
-    private static final int FOOTER_MAX_WIDTH = 308;
     /** Footer with Reset, Export, Import and Done. */
-    private static final int FOOTER_TRANSFER_MAX_WIDTH = 440;
+    private static final int FOOTER_MAX_WIDTH = 440;
 
     private final Screen parent;
     private final Button[] presetButtons = new Button[XRayConfig.PRESET_COUNT];
@@ -73,21 +72,16 @@ public final class BlockSelectionScreen extends Screen {
             rebuildWidgets();
         }).build();
         var done = Button.builder(Component.translatable("gui.done"), b -> onClose()).build();
-        //? if fabric && >=26.3 {
         var exportPreset = Button.builder(Component.translatable("button.betterxray.export_preset"),
             b -> PresetClipboard.exportPreset(minecraft, config.activePreset))
             .tooltip(Tooltip.create(Component.translatable("tooltip.betterxray.export_preset"))).build();
         var importPreset = Button.builder(Component.translatable("button.betterxray.import_preset"),
             b -> PresetClipboard.importPreset(minecraft, this, config.activePreset))
             .tooltip(Tooltip.create(Component.translatable("tooltip.betterxray.import_preset"))).build();
-        int footerWidth = Math.min(FOOTER_TRANSFER_MAX_WIDTH, contentWidth);
+        int footerWidth = Math.min(FOOTER_MAX_WIDTH, contentWidth);
         GuiLayout.row((width - footerWidth) / 2, footerY, footerWidth, reset, exportPreset, importPreset, done);
         addRenderableWidget(exportPreset);
         addRenderableWidget(importPreset);
-        //?} else {
-        /*int footerWidth = Math.min(FOOTER_MAX_WIDTH, contentWidth);
-        GuiLayout.row((width - footerWidth) / 2, footerY, footerWidth, reset, done);
-        *///?}
         addRenderableWidget(reset);
         addRenderableWidget(done);
         setInitialFocus(search);

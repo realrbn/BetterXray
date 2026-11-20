@@ -1,6 +1,5 @@
 package dev.betterxray.gui;
 
-//? if fabric && >=26.3 {
 import dev.betterxray.XRayClient;
 import dev.betterxray.compat.Mc;
 import dev.betterxray.config.PresetTransfer;
@@ -13,7 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Export/Import buttons of the active preset (Fabric 26.3): the preset goes to and comes from the
+ * Export/Import buttons of the active preset (all targets): the preset goes to and comes from the
  * system clipboard as one line of JSON ({@link PresetTransfer}). Results are shown as toasts, which
  * stay visible over the open screen. An import is applied only after a confirmation that names the
  * incoming preset, its entry count and the skipped entries.
@@ -21,7 +20,11 @@ import net.minecraft.network.chat.Component;
 public final class PresetClipboard {
     private PresetClipboard() {}
 
+    // 1.20.1 has a fixed enum of toast IDs; SystemToastId became an open class later.
+    //? if >=1.21 {
     private static final SystemToast.SystemToastId TOAST = new SystemToast.SystemToastId();
+    //?} else
+    /*private static final SystemToast.SystemToastIds TOAST = SystemToast.SystemToastIds.PERIODIC_NOTIFICATION;*/
 
     public static void exportPreset(Minecraft client, int index) {
         var preset = XRayConfigManager.get().presets.get(index);
@@ -80,7 +83,13 @@ public final class PresetClipboard {
     }
 
     private static void toast(Minecraft client, String titleKey, Component message) {
-        SystemToast.addOrUpdate(client.gui.toastManager(), TOAST, Component.translatable(titleKey), message);
+        // Toast manager: Minecraft.getToasts() until 1.21.1, getToastManager() in 1.21.11, Gui.toastManager() since 26.1.
+        //? if >=26.1 {
+        var toasts = client.gui.toastManager();
+        //?} else if >=1.21.11 {
+        /*var toasts = client.getToastManager();
+        *///?} else
+        /*var toasts = client.getToasts();*/
+        SystemToast.addOrUpdate(toasts, TOAST, Component.translatable(titleKey), message);
     }
 }
-//?}

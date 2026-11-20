@@ -13,8 +13,7 @@ on multiplayer servers (the Structure Finder is singleplayer-only, see below).
 - **X-Ray** – unselected terrain is rendered at an adjustable opacity (0–80 %, default 15 %);
   selected blocks stay fully visible and lit, even when completely enclosed. Water and lava can be
   hidden separately.
-- **Three presets** – independently named block lists with search by name or registry ID. On Fabric 26.3
-  a preset can be exported to and imported from the clipboard (Export/Import buttons) to share it.
+- **Three presets** – independently named block lists with search by name or registry ID. A preset can be exported to and imported from the clipboard (Export/Import buttons) to share it.
 - **Block tags** – presets and the highlight list accept tags such as `#c:ores`, which also cover
   blocks of other mods.
 - **Cave-Find** – caves, ravines and hidden rooms show up as solid, lit hollow shapes through the
@@ -27,7 +26,7 @@ on multiplayer servers (the Structure Finder is singleplayer-only, see below).
   modded structures and more in the loaded chunks.
 - **Mob / Player / Item ESP** – outlines or boxes through walls, grouped by mob type, with per-group
   and per-mob style, color and tracers; player name and health labels; ESP for single items.
-  Optional *Full View Distance* (Fabric 26.3, singleplayer, default off): ESP targets stay rendered up to the
+  Optional *Full View Distance* (singleplayer, default off): ESP targets stay rendered up to the
   render distance instead of vanishing at the vanilla entity tracking range.
 - **Fullbright** – works independently of X-Ray.
 - **Chat commands** – change every setting without opening the GUI.

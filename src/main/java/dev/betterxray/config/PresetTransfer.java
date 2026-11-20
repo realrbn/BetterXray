@@ -22,11 +22,8 @@ import java.util.Set;
 public final class PresetTransfer {
     private PresetTransfer() {}
 
-    /** Import/export buttons exist on this target (Fabric 26.3). */
-    //? if fabric && >=26.3 {
+    /** Import/export buttons exist on this target (every supported version and loader). */
     public static final boolean TARGET = true;
-    //?} else
-    /*public static final boolean TARGET = false;*/
 
     public static final String MARKER = "betterxray_preset";
     public static final int FORMAT_VERSION = 1;

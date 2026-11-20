@@ -1,6 +1,5 @@
 package dev.betterxray.mixin;
 
-//? if fabric && >=26.3 {
 import dev.betterxray.render.FarEspTracking;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.server.level.ChunkMap;
@@ -41,4 +40,3 @@ public abstract class FarEspChunkMapMixin {
         }
     }
 }
-//?}

@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Preset clipboard export/import (Fabric 26.3): round trip, hostile and broken input that must
+ * Preset clipboard export/import: round trip, hostile and broken input that must
  * end in a clean failure instead of an exception, and the real Export/Import buttons including
  * the confirmation screen.
  */

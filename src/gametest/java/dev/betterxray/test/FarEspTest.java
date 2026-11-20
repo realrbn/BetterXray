@@ -9,7 +9,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.Minecraft;
 
 /**
- * ESP "Full View Distance" (Fabric 26.3): a zombie 160 blocks away is beyond its tracking range
+ * ESP "Full View Distance": a zombie 160 blocks away is beyond its tracking range
  * (128 blocks), so the integrated server never sends it with the option off; with the option on
  * and ESP on for the zombie it reaches the client and gets its ESP box. Switching ESP or the option
  * off removes it again without anyone moving (periodic re-check).

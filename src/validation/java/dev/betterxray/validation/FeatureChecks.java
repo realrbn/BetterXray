@@ -40,6 +40,7 @@ final class FeatureChecks {
     /** {@code -PonlyWireframe}: build the cube (step 0), then run only the Wireframe steps. */
     static final boolean ONLY_WIREFRAME = "wireframe".equals(System.getProperty("betterxray.validation.only"));
     private static double ringBefore;
+    private static int farWait;
 
     /** Runs the next step; true once every step has run. */
     static boolean step(Minecraft mc) {
@@ -198,8 +199,57 @@ final class FeatureChecks {
             case 15 -> {
                 check(mc.screen instanceof StructureScreen, "Structure Finder screen opens");
                 shot(mc, "37-structures");
-                checkDebug("end of the feature checks");
                 mc.setScreen(null);
+                XRayConfigManager.reset();
+                XRayConfigManager.save();
+                XRayRenderController.apply();
+                // ESP Full View Distance: a zombie 160 blocks east, beyond its 128-block tracking
+                // range but inside render distance 12 (the integrated server follows the option).
+                mc.options.renderDistance().set(12);
+                int far = TransferChecks.FAR_DISTANCE;
+                commands(mc, "difficulty easy", "forceload add " + far + " 0", "tp @a 0 201 -10 -90 0",
+                    "summon minecraft:zombie " + far + ".5 230 0.5 {NoAI:1b,NoGravity:1b,PersistenceRequired:1b,Invulnerable:1b,Silent:1b}");
+                c = XRayConfigManager.get();
+                c.mobEspEnabled = true;
+                var enemies = c.espGroup(MobEspGroup.OVERWORLD_ENEMIES);
+                enemies.enabled = true;
+                enemies.style = XRayConfig.EspStyle.BOX;
+                XRayConfigManager.save();
+                farWait = 0;
+            }
+            case 16 -> {
+                // Wait until the far chunk is tracked by the player (render distance 12 loads gradually).
+                if (!mc.level.hasChunk(TransferChecks.FAR_DISTANCE >> 4, 0) && ++farWait < 12) { step--; return false; }
+                check(TransferChecks.farZombies(mc).isEmpty(), "Far zombie not sent with Full View Distance off");
+                check(!c.mobEspFullViewDistance, "Full View Distance defaults to off");
+                c.mobEspFullViewDistance = true;
+                XRayConfigManager.save();
+            }
+            case 17 -> {
+                var zombies = TransferChecks.farZombies(mc);
+                check(zombies.size() == 1 && TransferChecks.hasEsp(zombies.get(0)), "Full View Distance sends the far zombie with ESP, got " + zombies);
+                shot(mc, "38-far-esp");
+                int green = pixels(mc, 0x55ff55);
+                XRayClient.LOGGER.info("[XRayValidation] far ESP boxes {} green px {}", MobEspRenderer.lastDrawnBoxes(), green);
+                check(MobEspRenderer.lastDrawnBoxes() >= 1, "Far zombie gets its ESP box (" + MobEspRenderer.lastDrawnBoxes() + ")");
+                c.espGroup(MobEspGroup.OVERWORLD_ENEMIES).enabled = false;
+                XRayConfigManager.save();
+            }
+            case 18 -> {
+                check(TransferChecks.farZombies(mc).isEmpty(), "Far zombie removed after its ESP was switched off");
+                c.espGroup(MobEspGroup.OVERWORLD_ENEMIES).enabled = true;
+                XRayConfigManager.save();
+            }
+            case 19 -> {
+                check(TransferChecks.farZombies(mc).size() == 1, "Far zombie sent again after ESP was switched on");
+                c.mobEspFullViewDistance = false;
+                XRayConfigManager.save();
+            }
+            case 20 -> {
+                check(TransferChecks.farZombies(mc).isEmpty(), "Far zombie removed after Full View Distance was switched off");
+                commands(mc, "kill @e[type=minecraft:zombie]", "forceload remove " + TransferChecks.FAR_DISTANCE + " 0", "tp @a 0 201 -10 0 0");
+                mc.options.renderDistance().set(8);
+                checkDebug("end of the feature checks");
                 XRayConfigManager.reset();
                 XRayConfigManager.save();
                 XRayRenderController.apply();

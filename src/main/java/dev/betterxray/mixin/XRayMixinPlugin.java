@@ -69,10 +69,8 @@ public final class XRayMixinPlugin implements IMixinConfigPlugin {
         //? if >=26.3
         mixins.add("OitWireframeMixin");
         // ESP "full view distance": integrated-server entity tracking (FarEspTracking).
-        //? if fabric && >=26.3 {
         mixins.add("FarEspTrackingMixin");
         mixins.add("FarEspChunkMapMixin");
-        //?}
         mixins.addAll(GLASS_MIXINS);
         // Debug HUD where the loader has no HUD render event.
         //? if forge && >=1.21

@@ -84,7 +84,7 @@ public final class ClientValidation implements ClientModInitializer {
                     check(net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(key("toggle")).getValue()==88 && net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(key("fullbright")).getValue()==76 && net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(key("config")).getValue()==71,"X/L/G defaults");
                     check(key("cycle_preset").isUnbound() && key("quick_add_block").isUnbound() && key("tracers").isUnbound(),"Unbound defaults");
                     check(net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(key("highlight")).getValue()==72 && net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.getBoundKeyOf(key("esp")).getValue()==74,"H/J defaults");
-                    XRayClient.LOGGER.info("[XRayValidation] {}; {}; {}; {}", GuiChecks.migrations(), GuiChecks.run(mc), EspChecks.picker(mc), UpdateChecks.evaluation());
+                    XRayClient.LOGGER.info("[XRayValidation] {}; {}; {}; {}; {}", GuiChecks.migrations(), GuiChecks.run(mc), EspChecks.picker(mc), UpdateChecks.evaluation(), TransferChecks.presets(mc));
                     check(UpdateChecks.requests()==0 && dev.betterxray.update.UpdateChecker.result()==null,"No update request on the title screen");
                     XRayConfigManager.reset(); XRayRenderController.apply(); c=XRayConfigManager.get();
                     var legacy=new XRayConfig(); legacy.migrateLegacyVisibleBlocks(java.util.Set.of("minecraft:stone")); legacy.sanitize();

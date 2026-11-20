@@ -85,12 +85,9 @@ public final class MobEspRenderer {
 
     /**
      * "Full view distance" exists on this target: the integrated server tracks ESP targets up to the
-     * view distance instead of their entity tracking range (Fabric 26.3, {@code FarEspTrackingMixin}).
+     * view distance instead of their entity tracking range ({@code FarEspTrackingMixin}, every target).
      */
-    //? if fabric && >=26.3 {
     public static final boolean FAR_TRACKING_TARGET = true;
-    //?} else
-    /*public static final boolean FAR_TRACKING_TARGET = false;*/
 
     /**
      * Effective settings of this entity (its own overrides on top of its group), or null when off.

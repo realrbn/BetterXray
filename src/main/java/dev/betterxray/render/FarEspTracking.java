@@ -1,16 +1,15 @@
 package dev.betterxray.render;
 
-//? if fabric && >=26.3 {
 import dev.betterxray.config.XRayConfigManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 
 /**
- * "Full view distance" for ESP targets (singleplayer, Fabric 26.3).
+ * "Full view distance" for ESP targets (singleplayer, every target).
  *
  * <p>The client already draws ESP targets past the size-based entity render distance
- * ({@code MobEspExtractorMixin}), but the server only sends an entity within its tracking range
+ * ({@code MobEspExtractorMixin}, before 1.21.11 {@code MobEspVisibilityMixin}), but the server only sends an entity within its tracking range
  * ({@code EntityType.clientTrackingRange}: monsters 128 blocks, animals 160, items 96, scaled by
  * {@code entity-broadcast-range-percentage}), far less than a 20-chunk view distance. On the
  * integrated server this mod runs in the same JVM, so {@code FarEspTrackingMixin} raises that
@@ -35,7 +34,12 @@ public final class FarEspTracking {
 
     public static boolean isOwner(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
-        return server != null && server.isSingleplayerOwner(player.nameAndId());
+        if (server == null) return false;
+        // 1.21.9 replaced the GameProfile parameter with NameAndId.
+        //? if >=1.21.11 {
+        return server.isSingleplayerOwner(player.nameAndId());
+        //?} else
+        /*return server.isSingleplayerOwner(player.getGameProfile());*/
     }
 
     /** True when {@code entity} should be tracked up to the view distance of {@code player}. */
@@ -43,4 +47,3 @@ public final class FarEspTracking {
         return active() && isOwner(player) && MobEspRenderer.settings(entity, player) != null;
     }
 }
-//?}
