@@ -122,6 +122,45 @@ public final class CaveFindTest implements FabricClientGameTest {
             });
             Path underground = TestCompat.screenshot(context, "cave-07-underground");
             expect(underground, Region.CENTER, .5, 1, "second pocket seen from inside the first");
+
+            // Edge cases, away from the player's pocket: walls covered by carpet or glow lichen, an
+            // underground pool, the floor of a deep water column under the open sky, a cave entrance.
+            var server = world.getServer();
+            server.runCommand("fill 20 116 0 26 122 6 minecraft:stone");
+            server.runCommand("fill 21 117 1 25 121 5 minecraft:air");
+            server.runCommand("setblock 23 117 3 minecraft:moss_carpet");
+            server.runCommand("setblock 21 119 3 minecraft:glow_lichen[west=true]");
+            server.runCommand("fill 30 116 0 34 120 4 minecraft:stone");
+            server.runCommand("fill 31 117 1 33 119 3 minecraft:water");
+            server.runCommand("fill 40 100 0 42 117 2 minecraft:stone");
+            server.runCommand("fill 41 101 1 41 117 1 minecraft:water");
+            server.runCommand("fill 50 116 0 54 120 20 minecraft:stone");
+            server.runCommand("fill 52 117 0 52 118 18 minecraft:air");
+            TestCompat.packets(context, world);
+            context.waitTicks(60);
+            context.runOnClient(client -> {
+                var level = client.level;
+                var up = net.minecraft.core.Direction.UP;
+                var east = net.minecraft.core.Direction.EAST;
+                if (!XRayState.caveFace(level, new BlockPos(23, 116, 3), up))
+                    throw new AssertionError("Cave floor under moss carpet is no cave wall");
+                if (!XRayState.caveFace(level, new BlockPos(20, 119, 3), east))
+                    throw new AssertionError("Cave wall under glow lichen is no cave wall");
+                if (!XRayState.caveFace(level, new BlockPos(30, 118, 2), east))
+                    throw new AssertionError("Wall of an underground pool is no cave wall");
+                int deep = level.getBrightness(LightLayer.SKY, new BlockPos(41, 101, 1));
+                if (deep > XRayState.CAVE_SKY_LIGHT) throw new AssertionError("Water column fixture too bright: " + deep);
+                if (XRayState.caveFace(level, new BlockPos(41, 100, 1), up))
+                    throw new AssertionError("Floor of deep water under the open sky counts as a cave");
+                int inner = level.getBrightness(LightLayer.SKY, new BlockPos(52, 118, 10));
+                int mouth = level.getBrightness(LightLayer.SKY, new BlockPos(52, 118, 2));
+                if (inner == 0 || inner > XRayState.CAVE_SKY_LIGHT || mouth <= XRayState.CAVE_SKY_LIGHT)
+                    throw new AssertionError("Tunnel fixture light: inner " + inner + ", mouth " + mouth);
+                if (!XRayState.caveFace(level, new BlockPos(51, 118, 10), east))
+                    throw new AssertionError("Dim part of a cave entrance is no cave wall");
+                if (XRayState.caveFace(level, new BlockPos(51, 118, 2), east))
+                    throw new AssertionError("Bright cave mouth counts as a cave wall");
+            });
             context.runOnClient(client -> {
                 XRayConfigManager.reset();
                 XRayConfigManager.save();

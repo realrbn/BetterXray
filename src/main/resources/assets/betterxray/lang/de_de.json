@@ -113,7 +113,7 @@
   "key.betterxray.cave_find": "Cave-Find umschalten",
   "message.betterxray.cave_find": "Cave-Find: %s",
   "option.betterxray.cave_find": "Cave-Find: %s",
-  "tooltip.betterxray.cave_find": "Zeigt Höhlen durch das Gelände: Blockflächen an unterirdischer Luft (ohne Himmelslicht) bleiben massiv und hell, alles andere folgt der Gelände-Deckkraft. Funktioniert eigenständig; Preset-Blöcke werden nur angezeigt, wenn zusätzlich X-Ray an ist (Standard-Hotkey U).",
+  "tooltip.betterxray.cave_find": "Zeigt Höhlen durch das Gelände: Blockflächen an dunklem unterirdischem Raum (Luft, Pflanzen, Flechten, unterirdisches Wasser) bleiben massiv und hell, alles andere folgt der Gelände-Deckkraft. Die Höhle, in der du stehst, wird nicht markiert. Funktioniert eigenständig; Preset-Blöcke werden nur angezeigt, wenn zusätzlich X-Ray an ist (Standard-Hotkey U).",
   "key.betterxray.wireframe": "Wireframe umschalten",
   "message.betterxray.wireframe": "Wireframe: %s",
   "message.betterxray.wireframe_device": "Wireframe: an, wird von dieser Grafikkarte aber nicht unterstützt",

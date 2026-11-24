@@ -140,7 +140,7 @@
   "key.betterxray.cave_find": "Toggle Cave-Find",
   "message.betterxray.cave_find": "Cave-Find: %s",
   "option.betterxray.cave_find": "Cave-Find: %s",
-  "tooltip.betterxray.cave_find": "Shows caves through the terrain: block faces next to underground air (no sky light) stay solid and lit, everything else follows the terrain opacity. Works on its own; preset blocks are only shown when X-Ray is on as well (default hotkey U).",
+  "tooltip.betterxray.cave_find": "Shows caves through the terrain: block faces next to dark underground space (air, plants, lichen, underground water) stay solid and lit, everything else follows the terrain opacity. The cave you are standing in is not marked. Works on its own; preset blocks are only shown when X-Ray is on as well (default hotkey U).",
   "key.betterxray.wireframe": "Toggle Wireframe",
   "message.betterxray.wireframe": "Wireframe: %s",
   "message.betterxray.wireframe_device": "Wireframe: on, but not supported by this graphics device",

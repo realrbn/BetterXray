@@ -97,11 +97,14 @@ world and update automatically after joining a world or a `/reload`.
 
 ### Cave-Find
 
-Every block face that borders underground air (air without sky light) stays solid and fully lit,
-so caves show up as hollow shapes; all other terrain follows the X-Ray opacity (set it to 0 % to
-see only the caves). Cave-Find on its own shows only caves; turn X-Ray on as well to see your preset
-blocks too. Water- or lava-filled caves are not marked; in the Nether and the End every air pocket
-counts as a cave.
+Every block face that borders cave space stays solid and fully lit, so caves show up as hollow
+shapes; all other terrain follows the X-Ray opacity (set it to 0 % to see only the caves). Cave space
+is dark open space: air, but also glow lichen, plants, vines, dripstone, carpets, snow layers, rails
+and torches (walls covered by them still show), as well as underground water and lava pools. Space
+without sky light always counts; dim cave entrances count where a solid roof is above them. The floor
+of oceans and lakes under the open sky does not count. The cave you are standing in is not marked,
+so its walls do not hide the caves behind them. Cave-Find on its own shows only caves; turn X-Ray on
+as well to see your preset blocks too. In the Nether and the End every air pocket counts as a cave.
 
 ### Wireframe
 

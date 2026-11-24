@@ -12,6 +12,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LightLayer;
 //? if >=26.1 {
 import net.minecraft.world.level.BlockAndLightGetter;
@@ -103,10 +105,17 @@ public final class XRayState {
     }
 
     /**
-     * Cave-Find: {@code face} of the block at {@code pos} borders underground air, i.e. an air
-     * block without sky light. Such faces stay opaque and fully lit while the rest of the
-     * unselected terrain follows the X-Ray opacity. Meshing threads only; reads the section copy.
-     * Dimensions without sky light (Nether, End) count all air as underground.
+     * Cave-Find: sky light up to which open space can be a cave. Above it (open sky, shade under
+     * trees and overhangs) nothing is a cave; between 1 and this value (cave entrances, rooms with
+     * a door) only space with a solid roof above counts.
+     */
+    public static final int CAVE_SKY_LIGHT = 7;
+
+    /**
+     * Cave-Find: {@code face} of the block at {@code pos} borders cave space ({@link #caveSpace}) that
+     * is not the player's own air space ({@link CavePocket}). Such faces stay opaque and fully lit
+     * while the rest of the unselected terrain follows the X-Ray opacity. Meshing threads only;
+     * reads the section copy (the meshed section and its neighbors, never further).
      */
     //? if >=26.1 {
     public static boolean caveFace(BlockAndLightGetter level, BlockPos pos, Direction face) {
@@ -115,8 +124,58 @@ public final class XRayState {
     *///?}
         if (face == null || !caveFind()) return false;
         BlockPos neighbor = pos.relative(face);
-        return level.getBlockState(neighbor).isAir() && level.getBrightness(LightLayer.SKY, neighbor) == 0
-            && !CavePocket.contains(neighbor);
+        // Top of the section above the meshed one: the section copy ends there.
+        int maxY = SectionPos.sectionToBlockCoord(SectionPos.blockToSectionCoord(pos.getY()) + 1) + 15;
+        return caveSpace(level, neighbor, maxY) && !CavePocket.contains(neighbor);
+    }
+
+    /**
+     * Cave-Find: {@code pos} is space inside a cave. Its block does not fill its cell (air, plants,
+     * glow lichen, vines, dripstone, carpets, snow layers, rails, torches, fluids; walls covered by
+     * them still count) and it is dark: no sky light, or a little sky light under a solid roof.
+     * Fluids additionally need a roof or dark air above them within reach, so the floor of deep
+     * oceans and lakes under the open sky is no cave while underground lakes and lava pools are.
+     * Dimensions without sky light (Nether, End) count all open space as underground. Upward scans
+     * stop at {@code maxY}.
+     */
+    //? if >=26.1 {
+    public static boolean caveSpace(BlockAndLightGetter level, BlockPos pos, int maxY) {
+    //?} else {
+    /*public static boolean caveSpace(BlockAndTintGetter level, BlockPos pos, int maxY) {
+    *///?}
+        BlockState state = level.getBlockState(pos);
+        if (!openForCave(level, pos, state)) return false;
+        int sky = level.getBrightness(LightLayer.SKY, pos);
+        if (sky > CAVE_SKY_LIGHT) return false;
+        if (sky == 0 && state.getFluidState().isEmpty()) return true;
+        return covered(level, pos, maxY);
+    }
+
+    /** The block does not fill its cell: a wall face next to it stays visible. */
+    public static boolean openForCave(BlockGetter level, BlockPos pos, BlockState state) {
+        return state.isAir() || !state.isCollisionShapeFullBlock(level, pos);
+    }
+
+    /**
+     * Above {@code pos}, through fluids and open blocks, comes a solid roof or dark air (no sky light,
+     * i.e. sealed from the sky) before the open sky or {@code maxY}.
+     */
+    //? if >=26.1 {
+    private static boolean covered(BlockAndLightGetter level, BlockPos pos, int maxY) {
+    //?} else {
+    /*private static boolean covered(BlockAndTintGetter level, BlockPos pos, int maxY) {
+    *///?}
+        BlockPos.MutableBlockPos above = pos.mutable();
+        for (int y = pos.getY() + 1; y <= maxY; y++) {
+            above.setY(y);
+            BlockState state = level.getBlockState(above);
+            boolean fluid = !state.getFluidState().isEmpty();
+            if (!fluid && state.canOcclude() && state.isCollisionShapeFullBlock(level, above)) return true;
+            int sky = level.getBrightness(LightLayer.SKY, above);
+            if (sky >= 15) return false;
+            if (!fluid && sky == 0) return true;
+        }
+        return false;
     }
 
     /**

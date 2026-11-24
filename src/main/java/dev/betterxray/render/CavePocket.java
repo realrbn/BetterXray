@@ -12,15 +12,17 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Cave-Find: the air space the player is standing in. Underground, the player's own tunnel or
- * cave is "underground air" as well; its walls would be meshed opaque around the camera and hide
- * every other cave (and with X-Ray on, the ores behind them). Air reachable from the player's eye
- * is therefore not a cave: its walls follow the X-Ray opacity like the rest of the terrain.
+ * Cave-Find: the cave the player is standing in. Underground, the player's own tunnel or cave is
+ * cave space as well; its walls would be meshed opaque around the camera and hide every other cave
+ * (and with X-Ray on, the ores behind them). Cave space connected to the player's eye is therefore
+ * not a cave: its walls follow the X-Ray opacity like the rest of the terrain.
  *
- * <p>Flood fill over passable blocks from the eye, bounded by {@link #RADIUS} and {@link #MAX_NODES}.
- * Only dark air (no sky light) is recorded, the only air {@link XRayState#caveFace} looks at.
- * When the pocket changes (moving, mining), the sections whose faces border the changed blocks
- * are rebuilt. The published set is never modified afterwards (read by meshing threads).
+ * <p>Flood fill from the eye through dark space the player could move through (air, fluids, plants,
+ * torches, rails; not glass, doors or fences, so a cave behind a window stays a cave), bounded by
+ * {@link #RADIUS} and {@link #MAX_NODES}. On the surface (eye not dark) the pocket is empty, so caves
+ * opening next to the player stay visible. Dark open cells next to the fill are recorded as well.
+ * When the pocket changes (moving, mining), only sections holding faces toward changed cells are
+ * rebuilt. The published set is never modified afterwards (read by meshing threads).
  */
 public final class CavePocket {
     /** Chebyshev distance from the eye that the flood fill reaches. */
@@ -29,6 +31,8 @@ public final class CavePocket {
     private static final int MAX_NODES = 32768;
     /** Recomputed this often while standing still (mining, block updates). */
     private static final int REFRESH_TICKS = 5;
+    /** At most one flood fill per this many ticks while moving (flying fast through caves). */
+    private static final int MIN_INTERVAL_TICKS = 3;
     /** More dirty sections than this rebuild everything instead. */
     private static final int MAX_DIRTY_SECTIONS = 512;
 
@@ -39,7 +43,7 @@ public final class CavePocket {
 
     private CavePocket() {}
 
-    /** {@code pos} is dark air connected to the player: not a cave for Cave-Find. */
+    /** {@code pos} is dark open space connected to the player: not a cave for Cave-Find. */
     public static boolean contains(BlockPos pos) {
         return pocket.contains(pos.asLong());
     }
@@ -58,7 +62,8 @@ public final class CavePocket {
         }
         BlockPos eye = BlockPos.containing(client.player.getEyePosition());
         boolean moved = eye.asLong() != lastEye || level != lastLevel;
-        if (!moved && !fullRebuild && ++ticks < REFRESH_TICKS) return;
+        ticks++;
+        if (!fullRebuild && level == lastLevel && ticks < (moved ? MIN_INTERVAL_TICKS : REFRESH_TICKS)) return;
         ticks = 0;
         boolean sameLevel = level == lastLevel;
         lastEye = eye.asLong();
@@ -72,49 +77,54 @@ public final class CavePocket {
             if (!sameLevel) XRayRenderController.requestRebuild();
             return;
         }
-        markChanged(client, previous, next);
+        markChanged(client, level, previous, next);
     }
 
     private static LongOpenHashSet flood(ClientLevel level, BlockPos eye) {
         LongOpenHashSet result = new LongOpenHashSet();
         BlockPos start = eye;
-        if (!passable(level.getBlockState(start))) {
+        if (!dark(level, start) || !traversable(level, start)) {
             start = eye.below();
-            if (!passable(level.getBlockState(start))) return result;
+            if (!dark(level, start) || !traversable(level, start)) return result;
         }
         LongOpenHashSet visited = new LongOpenHashSet();
         LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
         visited.add(start.asLong());
+        result.add(start.asLong());
         queue.enqueue(start.asLong());
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        while (!queue.isEmpty()) {
+        while (!queue.isEmpty() && visited.size() < MAX_NODES) {
             long current = queue.dequeueLong();
-            pos.set(current);
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir() && level.getBrightness(LightLayer.SKY, pos) == 0) result.add(current);
             for (Direction direction : Direction.values()) {
                 long neighbor = BlockPos.offset(current, direction);
-                if (visited.contains(neighbor) || visited.size() >= MAX_NODES) continue;
+                if (!visited.add(neighbor)) continue;
                 pos.set(neighbor);
                 if (Math.abs(pos.getX() - eye.getX()) > RADIUS || Math.abs(pos.getY() - eye.getY()) > RADIUS
                     || Math.abs(pos.getZ() - eye.getZ()) > RADIUS || level.isOutsideBuildHeight(pos)) continue;
-                if (!passable(level.getBlockState(pos))) continue;
-                visited.add(neighbor);
-                queue.enqueue(neighbor);
+                if (!dark(level, pos)) continue;
+                result.add(neighbor);
+                if (traversable(level, pos)) queue.enqueue(neighbor);
             }
         }
         return result;
     }
 
-    /** The player could see or walk through it: air, fluids, torches, glass, plants. */
-    private static boolean passable(BlockState state) {
-        return state.isAir() || !state.canOcclude() || !state.getFluidState().isEmpty();
+    /** Open (does not fill its cell) and dark enough to be cave space. */
+    private static boolean dark(ClientLevel level, BlockPos pos) {
+        return XRayState.openForCave(level, pos, level.getBlockState(pos))
+            && level.getBrightness(LightLayer.SKY, pos) <= XRayState.CAVE_SKY_LIGHT;
     }
 
-    /** Rebuilds the sections holding the faces next to blocks that joined or left the pocket. */
-    private static void markChanged(Minecraft client, LongOpenHashSet previous, LongOpenHashSet next) {
+    /** The player could move through it: no collision (air, plants, torches, rails) or a fluid. */
+    private static boolean traversable(ClientLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return state.isAir() || !state.getFluidState().isEmpty() || state.getCollisionShape(level, pos).isEmpty();
+    }
+
+    /** Rebuilds the sections holding faces toward cells that joined or left the pocket. */
+    private static void markChanged(Minecraft client, ClientLevel level, LongOpenHashSet previous, LongOpenHashSet next) {
         LongOpenHashSet sections = new LongOpenHashSet();
-        if (!collect(previous, next, sections) || !collect(next, previous, sections)) {
+        if (!collect(level, previous, next, sections) || !collect(level, next, previous, sections)) {
             XRayRenderController.requestRebuild();
             return;
         }
@@ -129,16 +139,20 @@ public final class CavePocket {
         }
     }
 
-    /** Sections of the neighbors of every block in {@code a} but not in {@code b}; false when too many. */
-    private static boolean collect(LongOpenHashSet a, LongOpenHashSet b, LongOpenHashSet sections) {
+    /**
+     * Sections of the non-air neighbors (the blocks with faces toward the cell) of every cell in
+     * {@code a} but not in {@code b}; false when too many. Changes in open air touch no section.
+     */
+    private static boolean collect(ClientLevel level, LongOpenHashSet a, LongOpenHashSet b, LongOpenHashSet sections) {
+        BlockPos.MutableBlockPos neighbor = new BlockPos.MutableBlockPos();
         for (LongIterator it = a.iterator(); it.hasNext(); ) {
             long pos = it.nextLong();
             if (b.contains(pos)) continue;
-            int x = BlockPos.getX(pos), y = BlockPos.getY(pos), z = BlockPos.getZ(pos);
             for (Direction direction : Direction.values()) {
-                sections.add(SectionPos.asLong(SectionPos.blockToSectionCoord(x + direction.getStepX()),
-                    SectionPos.blockToSectionCoord(y + direction.getStepY()),
-                    SectionPos.blockToSectionCoord(z + direction.getStepZ())));
+                neighbor.set(BlockPos.offset(pos, direction));
+                if (level.getBlockState(neighbor).isAir()) continue;
+                sections.add(SectionPos.asLong(SectionPos.blockToSectionCoord(neighbor.getX()),
+                    SectionPos.blockToSectionCoord(neighbor.getY()), SectionPos.blockToSectionCoord(neighbor.getZ())));
             }
             if (sections.size() > MAX_DIRTY_SECTIONS) return false;
         }
