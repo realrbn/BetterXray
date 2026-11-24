@@ -45,21 +45,27 @@ public final class UpdateChecker {
     private static final int MAX_BYTES = 1 << 20;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    /** Longer changelog texts are cut off (a short note, not release notes). */
+    static final int MAX_CHANGELOG = 300;
 
     public enum Status {
         UPDATE_AVAILABLE, UP_TO_DATE, INSTALLED_NEWER, PROJECT_NOT_LISTED, LOADER_NOT_LISTED,
         MINECRAFT_NOT_LISTED, INVALID_DATA, UNREACHABLE, DISABLED
     }
 
-    /** Outcome of one check; {@code latest}/{@code url} are only set when an entry was found. */
-    public record Result(Status status, String latest, String url, String detail) {
-        static Result of(Status status, String detail) { return new Result(status, null, null, detail); }
+    /**
+     * Outcome of one check; {@code latest}/{@code url} are only set when an entry was found,
+     * {@code changelog} only when that entry has a non-empty one.
+     */
+    public record Result(Status status, String latest, String url, String changelog, String detail) {
+        static Result of(Status status, String detail) { return new Result(status, null, null, null, detail); }
     }
 
     private static boolean started;
     private static volatile Result result;
     private static boolean handled;
     private static Component lastMessage;
+    private static Component lastChangelog;
 
     private UpdateChecker() {}
 
@@ -77,8 +83,10 @@ public final class UpdateChecker {
         handled = true;
         if (done.status() == Status.UPDATE_AVAILABLE) {
             lastMessage = message(done);
+            lastChangelog = changelogMessage(done);
             // Local chat only: never sent to the (integrated) server or anyone else.
             Mc.localChat(client, lastMessage);
+            if (lastChangelog != null) Mc.localChat(client, lastChangelog);
         }
     }
 
@@ -132,7 +140,8 @@ public final class UpdateChecker {
 
     /**
      * Pure evaluation of update-check.json:
-     * {@code mods.<projectId>.<loader>.<minecraftVersion> = {latest, url}}. A patch release such as
+     * {@code mods.<projectId>.<loader>.<minecraftVersion> = {latest, url, changelog}}; the changelog
+     * is optional and ignored when empty. A patch release such as
      * 26.3.1 falls back to the 26.3 entry when it has no entry of its own.
      */
     public static Result evaluate(String json, String projectId, String loader, String minecraft, String installed) {
@@ -163,7 +172,7 @@ public final class UpdateChecker {
             return Result.of(Status.INVALID_DATA, e.getMessage());
         }
         Status status = comparison > 0 ? Status.UPDATE_AVAILABLE : comparison == 0 ? Status.UP_TO_DATE : Status.INSTALLED_NEWER;
-        return new Result(status, latest.trim(), page, "installed " + installed);
+        return new Result(status, latest.trim(), page, changelog(string(entry, "changelog")), "installed " + installed);
     }
 
     private static List<String> minecraftKeys(String minecraft) {
@@ -183,6 +192,25 @@ public final class UpdateChecker {
     private static String string(JsonObject parent, String key) {
         JsonElement value = parent.get(key);
         return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString() ? value.getAsString() : null;
+    }
+
+    /**
+     * The entry's changelog as plain chat text: formatting codes and control characters removed,
+     * line breaks and tabs turned into spaces, cut off after {@link #MAX_CHANGELOG} characters;
+     * {@code null} when missing or empty, so the chat shows only the usual update hint.
+     */
+    static String changelog(String text) {
+        if (text == null) return null;
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\u00a7') { i++; continue; } // formatting code and its argument
+            if (c == '\n' || c == '\r' || c == '\t') out.append(' ');
+            else if (!Character.isISOControl(c)) out.append(c);
+        }
+        String value = out.toString().replaceAll(" {2,}", " ").trim();
+        if (value.isEmpty()) return null;
+        return value.length() > MAX_CHANGELOG ? value.substring(0, MAX_CHANGELOG - 1).trim() + "…" : value;
     }
 
     /** The JSON's download page if it is a plain http(s) link, otherwise the CurseForge project page. */
@@ -262,12 +290,21 @@ public final class UpdateChecker {
             .append(link).append(Component.literal("]").withStyle(ChatFormatting.YELLOW));
     }
 
+    /** "Changelog: …" below the update hint, or {@code null} when the entry has no changelog. */
+    public static Component changelogMessage(Result update) {
+        if (update.changelog() == null) return null;
+        return Component.literal("Changelog: ").withStyle(ChatFormatting.YELLOW)
+            .append(Component.literal(update.changelog()).withStyle(ChatFormatting.WHITE));
+    }
+
     private static String modVersion(String id) {
         return Platform.modVersion(id);
     }
 
     /** Last update hint shown in chat this session, or {@code null}. */
     public static Component lastMessage() { return lastMessage; }
+    /** Changelog line shown below it this session, or {@code null} (none, or empty in the JSON). */
+    public static Component lastChangelog() { return lastChangelog; }
     /** Latest check result, or {@code null} while running or before the first singleplayer world. */
     public static Result result() { return result; }
 
@@ -277,5 +314,6 @@ public final class UpdateChecker {
         handled = false;
         result = null;
         lastMessage = null;
+        lastChangelog = null;
     }
 }

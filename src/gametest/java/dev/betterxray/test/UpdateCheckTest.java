@@ -25,11 +25,13 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class UpdateCheckTest implements FabricClientGameTest {
     private static final String PAGE = "https://www.curseforge.com/minecraft/mc-mods/better-xray";
     private static final String TEXT = "[Better X-Ray: New Version is available. Update on Curseforge]";
+    private static final String CHANGELOG = "Cave-Find works underground";
 
     @Override public void runTest(ClientGameTestContext context) {
         if (TestCompat.skip(this)) return;
         if (System.getProperty("betterxray.test.persistence") != null) return;
         checkEvaluation();
+        checkChangelog();
         checkVersions();
         try {
             runServerFlow(context);
@@ -41,8 +43,12 @@ public final class UpdateCheckTest implements FabricClientGameTest {
         }
     }
 
-    private static String json(String latest, String url) {
-        String entry = "{\"latest\": \"" + latest + "\"" + (url == null ? "" : ", \"url\": \"" + url + "\"") + "}";
+    private static String json(String latest, String url) { return json(latest, url, null); }
+
+    /** {@code changelog}: plain text without quotes or backslashes, or null for no changelog field. */
+    private static String json(String latest, String url, String changelog) {
+        String entry = "{\"latest\": \"" + latest + "\"" + (url == null ? "" : ", \"url\": \"" + url + "\"")
+            + (changelog == null ? "" : ", \"changelog\": \"" + changelog + "\"") + "}";
         return "{\"schema\": 1, \"mods\": {"
             + "\"1699797\": {\"fabric\": {\"26.3\": {\"latest\": \"9.9.9\", \"url\": \"https://example.com/other\"}}},"
             + "\"1713176\": {\"fabric\": {\"1.20.1\": " + entry + ", \"1.21.1\": " + entry + ", \"1.21.11\": " + entry + ", \"26.2\": " + entry + ", \"26.3\": " + entry + "},"
@@ -81,6 +87,53 @@ public final class UpdateCheckTest implements FabricClientGameTest {
             throw new AssertionError("Non-web url must fall back to the CurseForge page");
     }
 
+    /** Optional per-entry changelog: shown as its own line, plain text only, absent when empty. */
+    private static void checkChangelog() {
+        if (UpdateChecker.evaluate(json("2.0.0", PAGE), "1713176", "fabric", "26.3", "1.0.10").changelog() != null)
+            throw new AssertionError("Changelog without a changelog field");
+        String[][] cases = {
+            {"  Cave-Find fixed underground  ", "Cave-Find fixed underground"},
+            {"", null}, {"   ", null},
+            // Formatting codes are dropped, line breaks become spaces.
+            {"§c§lRed\n  second line", "Red second line"},
+        };
+        for (String[] c : cases) {
+            String text = c[0];
+            var result = UpdateChecker.evaluate(withChangelog(new com.google.gson.JsonPrimitive(text)),
+                "1713176", "fabric", "26.3", "1.0.10");
+            expect(result, Status.UPDATE_AVAILABLE, "entry with changelog");
+            if (!java.util.Objects.equals(result.changelog(), c[1]))
+                throw new AssertionError("Changelog " + text + ": expected " + c[1] + " but got " + result.changelog());
+            Component line = UpdateChecker.changelogMessage(result);
+            if (c[1] == null ? line != null : line == null || !line.getString().equals("Changelog: " + c[1]))
+                throw new AssertionError("Wrong changelog line for " + text + ": " + line);
+        }
+        String longText = "x".repeat(400);
+        String cut = UpdateChecker.evaluate(withChangelog(new com.google.gson.JsonPrimitive(longText)),
+            "1713176", "fabric", "26.3", "1.0.10").changelog();
+        if (cut == null || cut.length() > 300 || !cut.endsWith("…")) throw new AssertionError("Long changelog not cut off: " + cut);
+        if (UpdateChecker.evaluate(withChangelog(new com.google.gson.JsonPrimitive(5)), "1713176", "fabric", "26.3", "1.0.10").changelog() != null)
+            throw new AssertionError("Non-text changelog must be ignored");
+    }
+
+    /** update-check.json with one fabric 26.3 entry (2.0.0) whose changelog is {@code changelog}. */
+    private static String withChangelog(com.google.gson.JsonElement changelog) {
+        var entry = new com.google.gson.JsonObject();
+        entry.addProperty("latest", "2.0.0");
+        entry.addProperty("url", PAGE);
+        entry.add("changelog", changelog);
+        var versions = new com.google.gson.JsonObject();
+        versions.add("26.3", entry);
+        var loaders = new com.google.gson.JsonObject();
+        loaders.add("fabric", versions);
+        var mods = new com.google.gson.JsonObject();
+        mods.add("1713176", loaders);
+        var root = new com.google.gson.JsonObject();
+        root.addProperty("schema", 1);
+        root.add("mods", mods);
+        return root.toString();
+    }
+
     private static void checkVersions() {
         String[][] ordered = {{"1.0.9", "1.0.10"}, {"1.0.10", "2.0.0"}, {"2.0.0-beta.1", "2.0.0"}, {"2.0.0-beta.1", "2.0.0-beta.2"},
             {"2.0.0-alpha", "2.0.0-beta"}, {"2.0.0-beta.2", "2.0.0-beta.10"}, {"1.9", "1.10"}};
@@ -93,7 +146,7 @@ public final class UpdateCheckTest implements FabricClientGameTest {
 
     private void runServerFlow(ClientGameTestContext context) throws IOException {
         AtomicInteger requests = new AtomicInteger();
-        AtomicReference<String> body = new AtomicReference<>(json("99.0.0", PAGE));
+        AtomicReference<String> body = new AtomicReference<>(json("99.0.0", PAGE, CHANGELOG));
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/update-check.json", exchange -> {
             requests.incrementAndGet();
@@ -127,6 +180,10 @@ public final class UpdateCheckTest implements FabricClientGameTest {
                 context.runOnClient(client -> {
                     // The hint must really be in the local chat history (client-side system message).
                     if (!chatContains(client, TEXT)) throw new AssertionError("Hint missing from the local chat");
+                    Component changelog = UpdateChecker.lastChangelog();
+                    if (changelog == null || !changelog.getString().equals("Changelog: " + CHANGELOG))
+                        throw new AssertionError("Wrong changelog line: " + changelog);
+                    if (!chatContains(client, "Changelog: " + CHANGELOG)) throw new AssertionError("Changelog missing from the local chat");
                     TestCompat.openChat(client);
                 });
                 context.waitTicks(5);
@@ -171,7 +228,8 @@ public final class UpdateCheckTest implements FabricClientGameTest {
             context.waitTicks(2);
             context.runOnClient(client -> {
                 expect(UpdateChecker.result(), status, "server flow");
-                if (UpdateChecker.lastMessage() != null) throw new AssertionError("Hint shown for " + status);
+                if (UpdateChecker.lastMessage() != null || UpdateChecker.lastChangelog() != null)
+                    throw new AssertionError("Hint shown for " + status);
             });
         }
     }

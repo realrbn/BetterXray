@@ -237,7 +237,8 @@ older versions are migrated automatically.
 
 Once per game session, when the first singleplayer world is opened, the mod reads a small JSON file
 from `https://realrbn.github.io/update-check/update-check.json`. If a newer version is listed, a
-hint with a download link appears in your own chat. Nothing is sent anywhere, and nothing is shown
+hint with a download link appears in your own chat, followed by a short changelog line when one is
+listed for that version. Nothing is sent anywhere, and nothing is shown
 on multiplayer servers. Turn it off with the **Update Check** button in the X-Ray menu or the JVM
 argument `-Dbetterxray.updateCheck.url=off`.
 
