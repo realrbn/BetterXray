@@ -31,6 +31,8 @@ public final class XRayRenderController {
                 if (before.active()) rebuildPending = true;
             }
         }
+        // Cave-Find: the player's own air space is no cave (before the rebuild that meshes with it).
+        CavePocket.tick(client, rebuildPending);
         if (rebuildPending) {
             rebuildPending = false;
             if (client.level != null) {

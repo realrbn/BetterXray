@@ -100,6 +100,29 @@ public final class CaveFindTest implements FabricClientGameTest {
             context.waitTicks(2);
             context.runOnClient(client -> {
                 if (!XRayConfigManager.get().caveFind || !XRayState.caveFind()) throw new AssertionError("Hotkey U did not switch Cave-Find on again");
+            });
+            rebuild(context, world);
+
+            // Underground: the player stands inside the pocket. Its own walls are no cave (they would
+            // hide everything else), a second sealed pocket behind it still is.
+            world.getServer().runCommand("fill -2 117 12 2 123 16 minecraft:stone");
+            world.getServer().runCommand("fill -1 119 13 1 121 15 minecraft:air");
+            world.getServer().runCommand("tp @a 0 119 3 0 0");
+            TestCompat.packets(context, world);
+            context.waitTicks(40);
+            TestCompat.lookAt(context, new BlockPos(0, 120, 16));
+            set(context, world, false, true, 0f);
+            context.runOnClient(client -> {
+                if (client.level.getBrightness(LightLayer.SKY, new BlockPos(0, 120, 14)) != 0)
+                    throw new AssertionError("Second pocket has sky light");
+                if (XRayState.caveFace(client.level, new BlockPos(0, 120, 7), net.minecraft.core.Direction.NORTH))
+                    throw new AssertionError("Wall of the player's own pocket counts as a cave");
+                if (!XRayState.caveFace(client.level, new BlockPos(0, 120, 16), net.minecraft.core.Direction.NORTH))
+                    throw new AssertionError("Wall of the second pocket is no cave while underground");
+            });
+            Path underground = TestCompat.screenshot(context, "cave-07-underground");
+            expect(underground, Region.CENTER, .5, 1, "second pocket seen from inside the first");
+            context.runOnClient(client -> {
                 XRayConfigManager.reset();
                 XRayConfigManager.save();
                 XRayRenderController.apply();

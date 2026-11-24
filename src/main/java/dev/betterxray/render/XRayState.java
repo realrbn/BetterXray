@@ -115,7 +115,8 @@ public final class XRayState {
     *///?}
         if (face == null || !caveFind()) return false;
         BlockPos neighbor = pos.relative(face);
-        return level.getBlockState(neighbor).isAir() && level.getBrightness(LightLayer.SKY, neighbor) == 0;
+        return level.getBlockState(neighbor).isAir() && level.getBrightness(LightLayer.SKY, neighbor) == 0
+            && !CavePocket.contains(neighbor);
     }
 
     /**
