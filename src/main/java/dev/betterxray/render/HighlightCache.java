@@ -77,6 +77,17 @@ public final class HighlightCache {
      * the edge does not rescan them.
      */
     private static final double SCAN_MARGIN = 16.0;
+    /**
+     * At most this many highlighted blocks per section: a section with more (a common block such as
+     * stone in the list) is not indexed, which would cost memory and draw time without showing anything useful.
+     */
+    static final int MAX_PER_SECTION = 512;
+    /** At most this many highlighted blocks in total; further sections are not indexed. */
+    static final int MAX_TOTAL = 100_000;
+    /** Highlighted blocks currently indexed (sum over {@link #positions}). */
+    private static int total;
+    /** A section was left out because of {@link #MAX_PER_SECTION} or {@link #MAX_TOTAL} (debug HUD). */
+    private static boolean capped;
     /** Scan time per tick; at least one section is scanned. */
     private static final long SCAN_NANOS = 2_000_000L;
     /** Camera position and settings the indexed area was last computed for. */
@@ -201,6 +212,8 @@ public final class HighlightCache {
     private static void clearIndex() {
         scanned.clear();
         positions.clear();
+        total = 0;
+        capped = false;
         pending.clear();
         queued.clear();
         regionValid = false;
@@ -238,7 +251,7 @@ public final class HighlightCache {
             long section = SectionPos.asLong(chunkX, y, chunkZ);
             scanned.remove(section);
             queued.remove(section);
-            if (positions.remove(section) != null) veinsDirty = true;
+            if (removeSection(section)) veinsDirty = true;
         }
     }
 
@@ -253,10 +266,16 @@ public final class HighlightCache {
         Long2ObjectMap<Block> found = positions.get(section);
         Block before;
         if (now != null) {
+            if (found == null || !found.containsKey(packed)) {
+                int size = found == null ? 0 : found.size();
+                if (size >= MAX_PER_SECTION || total >= MAX_TOTAL) { capped = true; return; }
+                total++;
+            }
             if (found == null) positions.put(section, found = new Long2ObjectOpenHashMap<>());
             before = found.put(packed, now);
         } else {
             before = found == null ? null : found.remove(packed);
+            if (before != null) total--;
             if (found != null && found.isEmpty()) positions.remove(section);
         }
         if (before != now) veinsDirty = true;
@@ -272,6 +291,17 @@ public final class HighlightCache {
     public static boolean isScanned(BlockPos pos) {
         return scanned.contains(sectionKey(pos));
     }
+
+    /** Drops the indexed blocks of {@code section}; true when it had any. */
+    private static boolean removeSection(long section) {
+        var removed = positions.remove(section);
+        if (removed == null) return false;
+        total -= removed.size();
+        return true;
+    }
+
+    /** A section was not indexed because of the per-section or total limit. */
+    public static boolean capped() { return capped; }
 
     /** Number of highlighted positions currently indexed (used by tests). */
     public static int indexedCount() {
@@ -525,7 +555,7 @@ public final class HighlightCache {
             long section = it.nextLong();
             if (inIndexedArea(section, 1, 2 * SCAN_MARGIN)) continue;
             it.remove();
-            if (positions.remove(section) != null) veinsDirty = true;
+            if (removeSection(section)) veinsDirty = true;
         }
         pending.clear();
         queued.clear();
@@ -596,15 +626,24 @@ public final class HighlightCache {
             LevelChunkSection blockSection = sections[index];
             if (!blockSection.hasOnlyAir() && blockSection.maybeHas(state -> blocks.contains(state.getBlock()))) {
                 int baseX = SectionPos.x(section) * 16, baseY = SectionPos.y(section) * 16, baseZ = SectionPos.z(section) * 16;
+                cells:
                 for (int y = 0; y < 16; y++) for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
                     Block block = blockSection.getBlockState(x, y, z).getBlock();
                     if (!blocks.contains(block)) continue;
                     if (found == null) found = new Long2ObjectOpenHashMap<>();
                     found.put(BlockPos.asLong(baseX + x, baseY + y, baseZ + z), block);
+                    if (found.size() > MAX_PER_SECTION) break cells;
                 }
             }
         }
+        var previous = positions.get(section);
+        int kept = total - (previous == null ? 0 : previous.size());
+        if (found != null && (found.size() > MAX_PER_SECTION || kept + found.size() > MAX_TOTAL)) {
+            capped = true;
+            found = null;
+        }
         var before = found == null ? positions.remove(section) : positions.put(section, found);
+        total = kept + (found == null ? 0 : found.size());
         if (found != null || before != null) veinsDirty = true;
     }
 

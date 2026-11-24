@@ -229,6 +229,8 @@
   "structure.minecraft.abandoned_camp": "Abandoned Camps",
   "screen.betterxray.search_blocks": "Search name, registry ID or #tag…",
   "label.betterxray.tag_blocks": "Tag, %s blocks",
+  "label.betterxray.common_block": "Common block: may cause heavy lag",
+  "message.betterxray.added_common": "Added %s to %s – common block, may cause heavy lag",
   "label.betterxray.via_tag": "via %s",
   "message.betterxray.xray": "X-Ray: %s",
   "message.betterxray.unavailable": "X-Ray unavailable with this renderer / shader pack",

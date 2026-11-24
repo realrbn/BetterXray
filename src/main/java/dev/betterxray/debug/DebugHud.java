@@ -100,7 +100,7 @@ public final class DebugHud {
             XRayState.supported() ? TEXT : BAD));
         long since = XRayRenderController.lastRebuildMillis();
         out.add(new Line("  " + (XRayState.supported() ? "" : "UNSUPPORTED, ") + snapshot.visible().size()
-            + " blocks selected | rebuilds " + XRayRenderController.rebuilds()
+            + " blocks selected | rebuilds " + XRayRenderController.rebuilds() + " (+" + XRayRenderController.targetedRebuilds() + " targeted)"
             + (since == 0 ? "" : ", last " + seconds(System.currentTimeMillis() - since) + " ago"), XRayState.supported() ? TEXT : BAD));
 
         // Highlight
@@ -111,7 +111,7 @@ public final class DebugHud {
             out.add(new Line("Highlight: range " + (h.limited() ? Math.round(h.range()) + " blocks" : "render distance ("
                 + h.viewChunks() + " chunks)") + " | " + h.scannedSections() + " sections scanned, " + h.queuedSections()
                 + " queued, " + h.sectionsWithHits() + " with hits", TEXT));
-            out.add(new Line("  " + h.indexedPositions() + " blocks, " + (config.groupVeins ? h.veins() + " veins (built "
+            out.add(new Line("  " + h.indexedPositions() + " blocks" + (HighlightCache.capped() ? " (limit reached)" : "") + ", " + (config.groupVeins ? h.veins() + " veins (built "
                 + h.veinRebuilds() + "x, " + millis(h.lastVeinNanos()) + ")" : "veins off") + " | drawn " + h.drawnBoxes()
                 + " boxes, " + h.drawnTracers() + " tracers", TEXT));
             boolean far = h.farthestAllowed() >= 0 && h.farthestScanned() > h.farthestAllowed();

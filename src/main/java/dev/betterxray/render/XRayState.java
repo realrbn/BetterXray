@@ -41,6 +41,29 @@ public final class XRayState {
     private static volatile boolean faintUnsupported;
     private static volatile boolean faintEncoded;
     public static Snapshot get() { return current; }
+
+    /**
+     * The terrain meshes of both snapshots are the same: both have the X-Ray view off, or every
+     * value the meshing reads is equal. The preset only counts while the X-Ray switch is on, the
+     * opacity only outside the Wireframe mode (in it, the line opacity is meshed instead).
+     */
+    public static boolean meshEquals(Snapshot a, Snapshot b) {
+        if (!a.active() && !b.active()) return true;
+        if (a.enabled() != b.enabled() || a.caveFind() != b.caveFind() || a.water() != b.water() || a.lava() != b.lava()
+            || a.wireframe() != b.wireframe()) return false;
+        if (a.enabled() && !a.visible().equals(b.visible())) return false;
+        boolean lines = a.wireframe() && !wireframeUnavailable && !faintUnsupported;
+        // Faint block-entity models read the opacity while drawing, not from the meshes.
+        if (lines) return Math.min(a.wireframeOpacity(), MAX_LINE_OPACITY) == Math.min(b.wireframeOpacity(), MAX_LINE_OPACITY);
+        return a.opacity() == b.opacity();
+    }
+
+    /** Only the blocks of the preset differ, while the X-Ray switch is on in both snapshots. */
+    public static boolean onlyPresetChanged(Snapshot a, Snapshot b) {
+        return a.enabled() && b.enabled() && !a.visible().equals(b.visible())
+            && meshEquals(a, new Snapshot(b.enabled(), b.caveFind(), b.opacity(), b.water(), b.lava(), a.visible(),
+                b.wireframe(), b.wireframeOpacity()));
+    }
     /** True while the X-Ray view is meshed: X-Ray, Cave-Find or both are on. */
     public static boolean enabled() { return supported && current.active(); }
     public static boolean caveFind() { return supported && current.caveFind(); }
@@ -49,6 +72,14 @@ public final class XRayState {
      * preset blocks are then ordinary terrain (a cave wall, faint or hidden like the rest).
      */
     public static boolean selected(BlockState state) { return supported && current.enabled() && current.selected(state); }
+    /**
+     * Selected blocks keep the faces the renderer would cull (ores enclosed in stone stay complete),
+     * except toward another selected block: its opaque model hides the face, so the renderer's own
+     * culling decides as usual. Large veins and common blocks in a preset mesh far fewer faces.
+     */
+    public static boolean keepCulledFace(BlockGetter level, BlockPos pos, Direction face) {
+        return face == null || !selected(level.getBlockState(pos.relative(face)));
+    }
     /** Opacity 0%: unselected terrain is not emitted at all instead of drawn fully transparent. */
     public static float opacity() { return current.opacity(); }
     public static boolean hideTerrain() { return enabled() && (faintUnsupported || (current.opacity() <= 0f && !wireframe())); }

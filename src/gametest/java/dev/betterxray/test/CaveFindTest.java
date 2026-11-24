@@ -161,6 +161,35 @@ public final class CaveFindTest implements FabricClientGameTest {
                 if (XRayState.caveFace(level, new BlockPos(51, 118, 2), east))
                     throw new AssertionError("Bright cave mouth counts as a cave wall");
             });
+
+            // Rebuilds: a preset change with only Cave-Find on meshes nothing new; with X-Ray on it
+            // rebuilds only the sections that may hold the changed blocks.
+            int[] counts = new int[2];
+            context.runOnClient(client -> {
+                counts[0] = XRayRenderController.rebuilds();
+                counts[1] = XRayRenderController.targetedRebuilds();
+                XRayConfigManager.get().getActiveVisibleBlocks().add("minecraft:wet_sponge");
+                XRayRenderController.apply();
+            });
+            context.waitTicks(3);
+            context.runOnClient(client -> {
+                if (XRayRenderController.rebuilds() != counts[0] || XRayRenderController.targetedRebuilds() != counts[1])
+                    throw new AssertionError("Preset change rebuilt meshes while only Cave-Find was on");
+            });
+            set(context, world, true, true, 0f);
+            context.runOnClient(client -> {
+                counts[0] = XRayRenderController.rebuilds();
+                counts[1] = XRayRenderController.targetedRebuilds();
+                XRayConfigManager.get().getActiveVisibleBlocks().add("minecraft:sponge");
+                XRayRenderController.apply();
+            });
+            context.waitTicks(3);
+            context.runOnClient(client -> {
+                if (XRayRenderController.rebuilds() != counts[0])
+                    throw new AssertionError("Preset change with X-Ray on rebuilt every section");
+                if (XRayRenderController.targetedRebuilds() != counts[1] + 1)
+                    throw new AssertionError("Preset change with X-Ray on did not rebuild the affected sections");
+            });
             context.runOnClient(client -> {
                 XRayConfigManager.reset();
                 XRayConfigManager.save();

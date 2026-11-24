@@ -30,7 +30,7 @@ public abstract class ModelBlockRendererMixin {
         at = @At("HEAD"), cancellable = true)
     private void xray$faces(BlockAndTintGetter level, BlockPos pos, BlockState state, Direction direction,
             BlockPos neighborPos, CallbackInfoReturnable<Boolean> cir) {
-        if (XRayState.selected(state)) cir.setReturnValue(true);
+        if (XRayState.selected(state) && XRayState.keepCulledFace(level, pos, direction)) cir.setReturnValue(true);
     }
 }
 *///?}

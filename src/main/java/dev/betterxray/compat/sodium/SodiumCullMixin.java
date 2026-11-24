@@ -3,7 +3,12 @@ package dev.betterxray.compat.sodium;
 //? if >=1.21.11 {
 import dev.betterxray.render.XRayState;
 import net.caffeinemc.mods.sodium.client.render.model.AbstractBlockRenderContext;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+//? if >=26.1 {
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
+//?} else
+/*import net.minecraft.world.level.BlockAndTintGetter;*/
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
@@ -12,15 +17,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractBlockRenderContext.class)
 public abstract class SodiumCullMixin {
     @Shadow protected BlockState state;
+    @Shadow protected BlockAndTintGetter level;
+    @Shadow protected BlockPos pos;
     @Inject(method = "isFaceCulled", at = @At("HEAD"), cancellable = true)
     private void xray$faces(Direction face, CallbackInfoReturnable<Boolean> cir) {
-        if (state != null && XRayState.selected(state)) cir.setReturnValue(false);
+        if (state != null && XRayState.selected(state) && XRayState.keepCulledFace(level, pos, face)) cir.setReturnValue(false);
     }
 }
 //?} else if >=1.21 {
 /*import dev.betterxray.render.XRayState;
 import net.caffeinemc.mods.sodium.client.render.frapi.render.AbstractBlockRenderContext;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,10 +40,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = AbstractBlockRenderContext.class, remap = false)
 public abstract class SodiumCullMixin {
     @Shadow(remap = false) protected BlockState state;
+    @Shadow(remap = false) protected BlockAndTintGetter level;
+    @Shadow(remap = false) protected BlockPos pos;
 
     @Inject(method = "isFaceCulled", at = @At("HEAD"), cancellable = true, remap = false)
     private void xray$faces(Direction face, CallbackInfoReturnable<Boolean> cir) {
-        if (state != null && XRayState.selected(state)) cir.setReturnValue(false);
+        if (state != null && XRayState.selected(state) && XRayState.keepCulledFace(level, pos, face)) cir.setReturnValue(false);
     }
 }
 *///?} else {
@@ -55,7 +66,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class SodiumCullMixin {
     @Inject(method = "shouldDrawSide", at = @At("HEAD"), cancellable = true, remap = false)
     private void xray$faces(BlockState self, BlockGetter view, BlockPos pos, Direction face, CallbackInfoReturnable<Boolean> cir) {
-        if (XRayState.selected(self)) cir.setReturnValue(true);
+        if (XRayState.selected(self) && XRayState.keepCulledFace(view, pos, face)) cir.setReturnValue(true);
     }
 }
 *///?}

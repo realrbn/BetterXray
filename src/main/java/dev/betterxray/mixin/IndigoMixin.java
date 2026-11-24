@@ -36,7 +36,7 @@ public abstract class IndigoMixin {
     }
     @Inject(method = "shouldCullFace", at = @At("HEAD"), cancellable = true)
     private void xray$faces(Direction direction, CallbackInfoReturnable<Boolean> cir) {
-        if (XRayState.selected(blockState)) cir.setReturnValue(false);
+        if (XRayState.selected(blockState) && XRayState.keepCulledFace(level, pos, direction)) cir.setReturnValue(false);
     }
     @Inject(method = "transform", at = @At("RETURN"), cancellable = true)
     private void xray$quad(MutableQuadView quad, CallbackInfoReturnable<Boolean> cir) {
@@ -148,7 +148,8 @@ public abstract class IndigoMixin {
 
     @Inject(method = "isFaceCulled", at = @At("HEAD"), cancellable = true, remap = false)
     private void xray$faces(Direction face, CallbackInfoReturnable<Boolean> cir) {
-        if (xray$terrain() && XRayState.selected(blockInfo.blockState)) cir.setReturnValue(false);
+        if (xray$terrain() && XRayState.selected(blockInfo.blockState)
+            && XRayState.keepCulledFace(blockInfo.blockView, blockInfo.blockPos, face)) cir.setReturnValue(false);
     }
 
     private static final String SHADE = "Lnet/fabricmc/fabric/impl/client/indigo/renderer/render/AbstractBlockRenderContext;shadeQuad(Lnet/fabricmc/fabric/impl/client/indigo/renderer/mesh/MutableQuadViewImpl;ZZZ)V";

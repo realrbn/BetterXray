@@ -26,6 +26,21 @@ public final class BlockSelection {
 
     public static boolean isTag(String entry) { return entry != null && entry.startsWith(TAG_PREFIX); }
 
+    /**
+     * Blocks that make up most of the terrain. In a preset each one is meshed with all faces and full
+     * light (millions of quads), in the highlights each position is stored: both can stall the game.
+     */
+    public static final Set<String> COMMON_BLOCKS = Set.of(
+        "minecraft:stone", "minecraft:deepslate", "minecraft:dirt", "minecraft:grass_block", "minecraft:granite",
+        "minecraft:diorite", "minecraft:andesite", "minecraft:tuff", "minecraft:netherrack", "minecraft:end_stone",
+        "minecraft:sand", "minecraft:red_sand", "minecraft:sandstone", "minecraft:gravel", "minecraft:blackstone",
+        "minecraft:basalt", "minecraft:bedrock", "minecraft:terracotta", "minecraft:water", "minecraft:lava");
+
+    /** {@code block} is one of {@link #COMMON_BLOCKS}. */
+    public static boolean common(Block block) {
+        return block != null && COMMON_BLOCKS.contains(BuiltInRegistries.BLOCK.getKey(block).toString());
+    }
+
     public static boolean hasTags(Collection<String> entries) {
         for (String entry : entries) if (isTag(entry)) return true;
         return false;

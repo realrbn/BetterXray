@@ -19,7 +19,9 @@ public abstract class IndigoCullMixin {
 
     @Inject(method = "shouldCullSide", at = @At("HEAD"), cancellable = true, remap = false)
     private void xray$faces(@Nullable Direction side, CallbackInfoReturnable<Boolean> cir) {
-        if (blockState != null && XRayState.selected(blockState)) cir.setReturnValue(false);
+        BlockRenderInfo info = (BlockRenderInfo)(Object)this;
+        if (blockState != null && XRayState.selected(blockState) && XRayState.keepCulledFace(info.blockView, info.blockPos, side))
+            cir.setReturnValue(false);
     }
 }
 *///?}

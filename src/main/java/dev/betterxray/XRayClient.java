@@ -6,6 +6,7 @@ import dev.betterxray.compat.NvidiumNotice;
 import com.mojang.blaze3d.platform.InputConstants;
 
 import dev.betterxray.command.XRayCommands;
+import dev.betterxray.config.BlockSelection;
 import dev.betterxray.config.XRayConfigManager;
 import dev.betterxray.debug.DebugHud;
 import dev.betterxray.gui.XRayConfigScreen;
@@ -435,7 +436,9 @@ public final class XRayClient {
             return;
         }
         XRayRenderController.apply();
-        Mc.overlay(client, Component.translatable("message.betterxray.added", blockName, presetName));
+        Mc.overlay(client, BlockSelection.common(block)
+            ? Component.translatable("message.betterxray.added_common", blockName, presetName)
+            : Component.translatable("message.betterxray.added", blockName, presetName));
     }
 
     //? if <1.21.11 {

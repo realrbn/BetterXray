@@ -209,6 +209,8 @@
   "structure.minecraft.abandoned_camp": "Verlassene Lager",
   "screen.betterxray.search_blocks": "Name, Registry-ID oder #Tag suchen…",
   "label.betterxray.tag_blocks": "Tag, %s Blöcke",
+  "label.betterxray.common_block": "Häufiger Block: kann stark ruckeln",
+  "message.betterxray.added_common": "%s zu %s hinzugefügt – häufiger Block, kann stark ruckeln",
   "label.betterxray.via_tag": "über %s",
   "message.betterxray.xray": "X-Ray: %s",
   "message.betterxray.unavailable": "X-Ray mit diesem Renderer / Shaderpack nicht verfügbar",

@@ -92,18 +92,22 @@ public final class BlockListWidget extends SelectionList<BlockListWidget.Row> {
         private final Block block;
         /** Blocks of a tag row when the screen opened; empty for block rows and unbound tags. */
         private final List<Block> members;
+        /** Block (or tag with a block) that makes up most of the terrain: selecting it can stall the game. */
+        private final boolean common;
         private ItemStack icon;
         Row(Block block) {
             this.block = block;
             id = BuiltInRegistries.BLOCK.getKey(block).toString();
             name = block.getName();
             members = List.of();
+            common = BlockSelection.common(block);
         }
         Row(String tag, List<Block> members) {
             block = null;
             id = tag;
             this.members = List.copyOf(members);
             name = tagName(tag);
+            common = this.members.stream().anyMatch(BlockSelection::common);
         }
         boolean isTag() { return block == null; }
         boolean matches(String needle) {
@@ -154,7 +158,8 @@ public final class BlockListWidget extends SelectionList<BlockListWidget.Row> {
             String kind = isTag() ? ", " + Component.translatable("label.betterxray.tag_blocks", members.size()).getString() : "";
             String via = coveringTag();
             String state = selected() ? ", selected" : via != null ? ", selected via " + via : ", not selected";
-            return Component.literal(name.getString() + ", " + id + kind + state + color);
+            String warning = common ? ", " + Component.translatable("label.betterxray.common_block").getString() : "";
+            return Component.literal(name.getString() + ", " + id + kind + state + color + warning);
         }
         @Override public void extractContent(GuiGraphicsExtractor g, int mx, int my, boolean hovered, float delta) {
             int x = contentX(), y = contentY();
@@ -186,8 +191,10 @@ public final class BlockListWidget extends SelectionList<BlockListWidget.Row> {
                 if (own) second += "  ·  " + Component.translatable("label.betterxray.highlight_own_color").getString();
             }
             g.text(minecraft.font, minecraft.font.plainSubstrByWidth(name.getString(), textWidth), x + 50, textTop, 0xffffffff);
+            // The warning leads the second line so that it is not cut off on narrow screens.
+            if (common) second = "⚠ " + Component.translatable("label.betterxray.common_block").getString() + "  ·  " + second;
             g.text(minecraft.font, minecraft.font.plainSubstrByWidth(second, textWidth), x + 50, textTop + 13,
-                GlassTheme.ENABLED ? GlassTheme.TEXT_MUTED : 0xffaaaaaa);
+                common ? 0xffffb84d : GlassTheme.ENABLED ? GlassTheme.TEXT_MUTED : 0xffaaaaaa);
         }
         @Override protected boolean primaryClick(double mouseX, double mouseY) {
             setSelected(this);

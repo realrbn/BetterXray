@@ -156,7 +156,7 @@ public abstract class SodiumBlockMixin {
 
     @Inject(method = "isFaceVisible", at = @At("HEAD"), cancellable = true, remap = false)
     private void xray$faces(BlockRenderContext ctx, Direction face, CallbackInfoReturnable<Boolean> cir) {
-        if (XRayState.selected(ctx.state())) cir.setReturnValue(true);
+        if (XRayState.selected(ctx.state()) && XRayState.keepCulledFace(ctx.world(), ctx.pos(), face)) cir.setReturnValue(true);
     }
 
     @Inject(method = "writeGeometry", at = @At("HEAD"), cancellable = true, remap = false)
